@@ -6,9 +6,10 @@ Sperm Lab explains cell movement, anatomy, and damage pathways.
 The lab uses synthetic cells and fictional counts.
 It does not analyze semen or predict fertility.
 
-The reference sample and scenario sample share a random seed.
-This gives each comparison the same starting population.
-The scenario creates a separate fictional later cohort.
+The lab has one live sample.
+All 12 factor controls act on the same synthetic population.
+A factor change prepares a new population from the same random seed.
+The sample illustrates possible development pathways.
 It does not change an existing sperm head after one exposure.
 
 ## Separate biological properties
@@ -16,7 +17,13 @@ It does not change an existing sperm head after one exposure.
 Movement describes whether a cell moves.
 Progressive movement describes forward travel.
 Vitality describes whether a cell is alive.
-Shape describes the head and tail in this simplified drawing.
+Shape describes the head and tail outline in this simplified drawing.
+Examples include two heads, two tails, head differences, and tail differences.
+
+Midpiece injury is a separate trait.
+It does not necessarily change the midpiece outline.
+The `typical` count covers head and tail outlines only.
+It is not a WHO strict morphology score.
 DNA damage is a separate property.
 
 An immotile cell can be alive.
@@ -40,8 +47,23 @@ The lab identifies uncertain scenarios as possible-pathway examples.
 
 Every numerical parameter in a scenario is an authored teaching value.
 The parameters do not fit clinical data.
-The scenario intensity does not represent drinks, cigarettes, kilometers, degrees, or chemical concentration.
-The progress control does not represent a clinical recovery period.
+Factor strength does not represent drinks, cigarettes, kilometers, degrees, or chemical concentration.
+The Development point slider does not represent a clinical recovery period.
+
+The combined sample uses authored rules for shared development and damage pathways.
+It does not estimate the independent risk of each factor or their combined clinical effect.
+The model bounds those rules to keep the sample stable.
+A beneficial exercise setting does not cancel chemical exposure or repair existing damage.
+
+Multiple heads and multiple tails use independent morphology examples.
+The model does not attribute those forms to a specific lifestyle factor.
+A prepared morphology sample guarantees examples for inspection.
+Those examples do not show their frequency in people.
+
+WHO guidance describes the assessment of sperm heads, midpieces, and tails, including multiple heads and tails.
+[Read the WHO laboratory manual](https://www.who.int/publications/i/item/9789240030787).
+The lab uses original schematic drawings.
+It does not copy the manual's figures or present the drawings as diagnostic images.
 
 ## Factor scope
 
@@ -79,6 +101,21 @@ Observational studies examine psychological stress and sleep.
 
 WHO guidance includes environmental chemicals in the assessment of male infertility.
 [Read the WHO diagnostic guidance](https://www.ncbi.nlm.nih.gov/books/NBK620433/figure/ch5.fig3/).
+
+## Display proportions
+
+A human sperm study reports typical head lengths of 4–6 µm, midpiece lengths of 5–7 µm, and tail lengths of 50–60 µm.
+[Read the study of human sperm proportions and longitudinal rolling](https://pmc.ncbi.nlm.nih.gov/articles/PMC9790903/).
+
+Those dimensions guide the original cell outlines.
+The display does not use a calibrated microscope scale.
+Heads remain compact ovals, with a short, thin midpiece and a much longer tail.
+The anatomy inspector enlarges parts for explanation.
+
+The head drawing contains a compact nucleus rather than a loose DNA helix.
+DNA colors and fragmentation marks form a symbolic teaching overlay.
+They do not show molecular detail or resolved DNA breaks in ordinary microscopy.
+The overlay does not replace a laboratory assay for DNA damage.
 
 ## Motion and inspection
 

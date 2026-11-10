@@ -1,6 +1,13 @@
 const eau = { title: "EAU: Male infertility", url: "https://uroweb.org/guidelines/sexual-and-reproductive-health/chapter/male-infertility" };
 const nichd = { title: "NICHD: Lifestyle and environmental factors", url: "https://www.nichd.nih.gov/health/topics/infertility/conditioninfo/causes/lifestyle" };
 const endurance = { title: "Endurance exercise and semen quality: systematic review", url: "https://pubmed.ncbi.nlm.nih.gov/38861008/" };
+/** References for separate anatomy, movement, and energy concepts. The artwork is original. */
+export const ANATOMY_SOURCES = [
+    { title: "WHO: Laboratory manual for human semen, sixth edition", url: "https://www.who.int/publications/i/item/9789240030787" },
+    { title: "Separate assessment of head, midpiece, and tail in the WHO manual", url: "https://www.sciencedirect.com/science/article/pii/S0015028221022986" },
+    { title: "Glycolysis and oxidative phosphorylation in sperm movement", url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3501448/" },
+    { title: "Human sperm proportions and longitudinal rolling", url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC9790903/" },
+];
 /** These records explain evidence. They do not assign clinical doses or personal risks. */
 export const FACTORS = [
     {

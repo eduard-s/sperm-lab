@@ -7,11 +7,11 @@ product
 ## Purpose
 
 Help ordinary visitors understand sperm movement, anatomy, and DNA.
-Use a live microscope scene with native mouse interaction.
+Use one live microscope sample with native mouse interaction.
 Keep the first useful action visible without a tutorial.
 
-The lab compares a reference sample with a fictional later cohort.
-It includes 12 factors, with one selected factor at a time.
+The lab includes 12 independent factor sliders.
+All sliders remain visible and act on the same synthetic population.
 Every factor explains its mechanism, timescale, evidence, and limits.
 
 ## Users
@@ -23,10 +23,15 @@ The package needs no backend or account.
 ## Principles
 
 Keep movement, vitality, shape, and DNA damage separate.
+Show head, tail, and midpiece differences explicitly.
+Include examples with two heads and two tails.
 Show the simulation as a teaching example, without clinical predictions.
-Explain uncertain evidence where the user selects a factor.
-Use short discovery challenges with a biological explanation.
+Explain uncertain evidence near the factor controls.
 Keep source links near each factor.
+
+Combine factor controls without a dropdown or a baseline comparison.
+Use a prepared morphology sample to teach separate cell traits.
+Do not assign one unusual form to one lifestyle factor.
 
 ## Release
 

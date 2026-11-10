@@ -1,4 +1,18 @@
 import type { Factor, FactorId } from "./types.js";
+/** References for separate anatomy, movement, and energy concepts. The artwork is original. */
+export declare const ANATOMY_SOURCES: readonly [{
+    readonly title: "WHO: Laboratory manual for human semen, sixth edition";
+    readonly url: "https://www.who.int/publications/i/item/9789240030787";
+}, {
+    readonly title: "Separate assessment of head, midpiece, and tail in the WHO manual";
+    readonly url: "https://www.sciencedirect.com/science/article/pii/S0015028221022986";
+}, {
+    readonly title: "Glycolysis and oxidative phosphorylation in sperm movement";
+    readonly url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3501448/";
+}, {
+    readonly title: "Human sperm proportions and longitudinal rolling";
+    readonly url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC9790903/";
+}];
 /** These records explain evidence. They do not assign clinical doses or personal risks. */
 export declare const FACTORS: readonly [{
     readonly id: "exercise";

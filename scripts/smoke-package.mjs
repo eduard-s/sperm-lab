@@ -35,9 +35,9 @@ try {
     import assert from 'node:assert/strict';
     import { readFileSync } from 'node:fs';
     import { fileURLToPath } from 'node:url';
-    import { FACTORS, createSimulation, stepSimulation, getMetrics, getTailPoints, createChallengeSimulation } from 'sperm-lab/core';
+    import { FACTORS, createSimulation, stepSimulation, getMetrics, getTailPoints, createChallengeSimulation, createDefectSimulation } from 'sperm-lab/core';
     assert.equal(FACTORS.length, 12);
-    const world = createSimulation({ seed: 42, count: 32, factor: 'heat', progress: 1 });
+    const world = createSimulation({ seed: 42, count: 32, factors: { heat: .6, smoking: .4 }, progress: 1 });
     stepSimulation(world, 1 / 60);
     assert(world.time > 0);
     assert.equal(world.requestedCount, 32);
@@ -45,6 +45,8 @@ try {
     assert(world.cells.every(cell => Number.isFinite(cell.x) && Number.isFinite(cell.y)));
     assert(getTailPoints(world.cells[0], world.time).length > 2);
     for (const kind of ['hidden-dna', 'immotile-alive', 'circling']) assert(createChallengeSimulation(kind).cells.length > 0);
+    const defects = getMetrics(createDefectSimulation({ count: 24 }));
+    for (const trait of ['multiHead', 'multiTail', 'midpieceDamaged', 'dnaDamaged', 'slow', 'immotile', 'nonprogressive']) assert(defects[trait] > 0, trait);
     assert(readFileSync(fileURLToPath(import.meta.resolve('sperm-lab/styles.css')), 'utf8').includes('.sl-lab'));
     process.stdout.write(JSON.stringify({ factors: FACTORS.length, cells: world.cells.length }));
   `));
@@ -52,7 +54,7 @@ try {
   writeFileSync(join(temp, "core-consumer.mts"), `
     import { createSimulation, stepSimulation, type FactorId } from 'sperm-lab/core';
     const factor: FactorId = 'exercise';
-    const sample = createSimulation({ seed: 7, count: 24, factor, progress: 1 });
+    const sample = createSimulation({ seed: 7, count: 24, factors: { [factor]: .5, heat: .3 }, progress: 1 });
     stepSimulation(sample, 1 / 60);
   `);
   execFileSync(process.execPath, [join(root, "node_modules/typescript/bin/tsc"), "--noEmit", "--strict", "--skipLibCheck", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--lib", "ES2022,DOM", "core-consumer.mts"], { cwd: temp, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -70,7 +72,11 @@ try {
       const html = renderToString(React.createElement(SpermLab, { seed: 42, count: 24 }));
       for (const factor of FACTORS) assert(html.includes(factor.title.replaceAll('&', '&amp;')), factor.title);
       assert(html.includes('<canvas'));
-      assert(html.includes('<select'));
+      for (const factor of FACTORS) assert(html.includes('data-factor="' + factor.id + '"'), factor.id);
+      assert.equal((html.match(/<canvas\\b/g) ?? []).length, 1);
+      assert(!html.includes('<select'));
+      const configured = renderToString(React.createElement(SpermLab, { initialFactors: { smoking: .5, heat: .3 } }));
+      assert(!configured.includes('All factors start at zero.'));
       process.stdout.write(html);
     `);
     assert(markup.length > 1000);

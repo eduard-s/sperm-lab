@@ -4,6 +4,7 @@ export type SpermPalette = {
     sage: string;
     clay: string;
     accent: string;
+    paper?: string;
 };
 export type SpermDisplay = {
     trails: boolean;

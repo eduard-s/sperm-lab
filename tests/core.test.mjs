@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { FACTORS, getFactor, createSimulation, createChallengeSimulation, stepSimulation, getMetrics, getTailPoints, findCell } from "../dist/core/index.js";
+import { FACTORS, ANATOMY_SOURCES, getFactor, createSimulation, createChallengeSimulation, createDefectSimulation, resolveFactors, getActiveFactors, isSlow, SLOW_SPEED_THRESHOLD, stepSimulation, getMetrics, getTailPoints, findCell } from "../dist/core/index.js";
 
 test("the public catalog contains all 12 distinct sourced factors", () => {
   assert.equal(FACTORS.length, 12);
@@ -155,7 +155,7 @@ test("tail geometry animates without changing cell state", () => {
   assert.notDeepEqual(first, getTailPoints(cell, .07));
   assert.deepEqual(cell, original);
   assert.ok(first.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)));
-  assert.ok(first.every(point => Math.hypot(point.x - cell.x, point.y - cell.y) < .12));
+  assert.ok(first.every(point => Math.hypot(point.x - cell.x, point.y - cell.y) < .22));
 });
 
 test("hit detection selects nearby cells and rejects invalid coordinates", () => {
@@ -166,4 +166,147 @@ test("hit detection selects nearby cells and rejects invalid coordinates", () =>
   assert.equal(findCell(world, 20, 20), undefined);
   assert.equal(findCell(world, NaN, cell.y), undefined);
   assert.equal(findCell(world, cell.x, cell.y, -1), undefined);
+});
+
+test("all independent controls resolve to a finite complete settings object", () => {
+  const settings = resolveFactors({ heat: Infinity, smoking: .6, alcohol: -4, exercise: 5, sleep: NaN });
+  assert.equal(Object.keys(settings).length, 12);
+  assert.equal(settings.heat, 0);
+  assert.equal(settings.smoking, .6);
+  assert.equal(settings.alcohol, 0);
+  assert.equal(settings.exercise, 1);
+  assert.equal(settings.sleep, 0);
+  assert.equal(settings.fever, 0);
+  assert.throws(() => resolveFactors({ imaginary: 1 }), RangeError);
+  assert.throws(() => resolveFactors(null), TypeError);
+  assert.throws(() => resolveFactors([]), TypeError);
+});
+
+test("empty independent settings override the legacy factor and preserve an unchanged cohort", () => {
+  const baseline = createSimulation({ seed: 75, count: 64 });
+  const independent = createSimulation({ seed: 75, count: 64, factor: "heat", intensity: 1, factors: {} });
+  assert.deepEqual(independent.cells, baseline.cells);
+  assert.equal(independent.factor, undefined);
+  assert.deepEqual(getActiveFactors(independent), []);
+  assert.equal(getActiveFactors(createSimulation({ factors: { sleep: .2, heat: .7 } })).length, 2);
+});
+
+test("one independent control matches its legacy single-factor counterpart", () => {
+  for (const factor of FACTORS) {
+    const old = createSimulation({ seed: 10, count: 80, factor: factor.id, intensity: .6, progress: .75 });
+    const current = createSimulation({ seed: 10, count: 80, factors: { [factor.id]: .6 }, progress: .75 });
+    assert.deepEqual(current.cells, old.cells);
+    assert.deepEqual(current.factors, old.factors);
+  }
+});
+
+test("factor composition is independent of property order and ignores legacy intensity", () => {
+  const settings = Object.fromEntries(FACTORS.map((factor, index) => [factor.id, (index + 1) / 12]));
+  const reversed = Object.fromEntries(Object.entries(settings).reverse());
+  const a = createSimulation({ seed: 9, count: 120, factors: settings, intensity: 0 });
+  const b = createSimulation({ seed: 9, count: 120, factors: reversed, intensity: 1 });
+  assert.deepEqual(a.cells, b.cells);
+  assert.deepEqual(a.factors, b.factors);
+});
+
+test("every combination of the twelve controls produces a bounded teaching sample", () => {
+  for (let mask = 0; mask < 2 ** FACTORS.length; mask++) {
+    const factors = Object.fromEntries(FACTORS.map((factor, index) => [factor.id, mask & 1 << index ? 1 : 0]));
+    const world = createSimulation({ seed: mask, count: 40, factors });
+    const metrics = getMetrics(world);
+    assert.ok(metrics.total >= 1 && metrics.total <= 160);
+    for (const value of Object.values(metrics)) assert.ok(Number.isInteger(value) && value >= 0 && value <= metrics.total);
+    for (const cell of world.cells) assert.ok(Number.isFinite(cell.speed) && cell.speed >= 0 && cell.speed <= .07);
+    assert.equal(metrics.immotile + metrics.motile, metrics.total);
+    assert.equal(metrics.nonprogressive + metrics.progressive, metrics.motile);
+  }
+});
+
+test("zero development progress keeps every enabled factor at the unchanged sample", () => {
+  const factors = Object.fromEntries(FACTORS.map(factor => [factor.id, 1]));
+  const baseline = createSimulation({ seed: 11, count: 96 });
+  assert.deepEqual(createSimulation({ seed: 11, count: 96, factors, progress: 0 }).cells, baseline.cells);
+});
+
+test("exercise cannot cancel androgen-associated production suppression", () => {
+  const baseline = createSimulation({ count: 100 });
+  const androgens = createSimulation({ count: 100, factors: { androgens: 1 } });
+  const combined = createSimulation({ count: 100, factors: { androgens: 1, exercise: 1 } });
+  assert.ok(combined.cells.length < baseline.cells.length / 2);
+  assert.ok(combined.cells.length >= androgens.cells.length);
+  assert.deepEqual(combined.cells, baseline.cells.slice(0, combined.cells.length));
+});
+
+test("uncertain factors together cannot create DNA lesions or nonviability", () => {
+  const baseline = createSimulation({ seed: 21, count: 120 });
+  const combined = createSimulation({ seed: 21, count: 120, factors: { endurance: 1, cycling: 1, stress: 1, sleep: 1, alcohol: 1, fever: 1 } });
+  for (const cell of combined.cells) {
+    assert.equal(cell.alive, baseline.cells[cell.id].alive);
+    assert.equal(cell.dnaDamage, baseline.cells[cell.id].dnaDamage);
+  }
+});
+
+test("developmental head and tail counts never depend on lifestyle controls", () => {
+  const baseline = createSimulation({ seed: 60, count: 100 });
+  for (const factor of FACTORS) {
+    const changed = createSimulation({ seed: 60, count: 100, factors: { [factor.id]: 1 } });
+    for (const cell of changed.cells) {
+      const original = baseline.cells[cell.id];
+      if (original) {
+        assert.equal(cell.headCount, original.headCount);
+        assert.equal(cell.tailCount, original.tailCount);
+      }
+    }
+  }
+});
+
+test("prepared anatomy samples guarantee visible independent traits for every seed", () => {
+  for (const seed of [0, 1, 42, 90, 4444]) {
+    const world = createDefectSimulation({ seed, count: 1 });
+    assert.equal(world.fixture, "defect-examples");
+    assert.equal(world.cells.length, 8);
+    assert.equal(getActiveFactors(world).length, 0);
+    assert.equal(world.cells[0].headCount, 2);
+    assert.equal(world.cells[1].tailCount, 2);
+    assert.equal(world.cells[2].midpieceDamage, true);
+    assert.ok(world.cells[3].dnaDamage && world.cells[3].progressive && !world.cells[3].headDefect && !world.cells[3].tailDefect);
+    assert.ok(isSlow(world.cells[4]));
+    assert.ok(world.cells[5].alive && world.cells[5].speed === 0);
+    assert.ok(world.cells[6].speed > 0 && !world.cells[6].progressive);
+    assert.ok(world.cells[7].progressive);
+    const metrics = getMetrics(world);
+    assert.equal(metrics.multiHead, 1);
+    assert.equal(metrics.multiTail, 1);
+    assert.equal(metrics.midpieceDamaged, 1);
+    assert.equal(metrics.dnaDamaged, 1);
+    assert.equal(metrics.immotile, 1);
+    assert.equal(metrics.nonprogressive, 1);
+  }
+  assert.equal(createDefectSimulation({ count: 9 }).cells[8].alive, false);
+  assert.equal(SLOW_SPEED_THRESHOLD, .035);
+  assert.ok(ANATOMY_SOURCES.some(source => source.url.startsWith("https://www.who.int/")));
+});
+
+test("two tails have distinct finite geometry, with no mutation during a motion step", () => {
+  const world = createDefectSimulation({ count: 9 });
+  const cell = world.cells[1];
+  const first = getTailPoints(cell, 0, 0), second = getTailPoints(cell, 0, 1);
+  assert.notDeepEqual(first, second);
+  assert.ok(second.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)));
+  const biology = world.cells.map(cell => [cell.headCount, cell.tailCount, cell.headDefect, cell.tailDefect, cell.midpieceDamage, cell.dnaDamage, cell.alive]);
+  for (let frame = 0; frame < 100; frame++) stepSimulation(world, 1 / 60);
+  assert.deepEqual(world.cells.map(cell => [cell.headCount, cell.tailCount, cell.headDefect, cell.tailDefect, cell.midpieceDamage, cell.dnaDamage, cell.alive]), biology);
+});
+
+test("tail motion keeps its short proximal section straight and attached", () => {
+  const cell = createDefectSimulation({ count: 8 }).cells[7];
+  const first = getTailPoints(cell, 0);
+  const later = getTailPoints(cell, .13);
+  assert.deepEqual(first.slice(0, 3), later.slice(0, 3));
+  assert.notDeepEqual(first.slice(3), later.slice(3));
+  assert.ok(Math.abs(Math.hypot(first[0].x - cell.x, first[0].y - cell.y) - .009) < 1e-10);
+  for (let index = 1; index < 3; index++) {
+    const cross = (first[index].x - first[0].x) * Math.sin(cell.angle) - (first[index].y - first[0].y) * Math.cos(cell.angle);
+    assert.ok(Math.abs(cross) < 1e-10);
+  }
 });

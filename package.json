@@ -1,26 +1,58 @@
 {
   "name": "sperm-lab",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "An interactive sperm education lab with 12 factors, a headless TypeScript simulation, and an embeddable React component.",
   "type": "module",
   "license": "MIT",
   "author": "Eduard Smirnov",
-  "repository": { "type": "git", "url": "git+https://github.com/eduard-s/sperm-lab.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eduard-s/sperm-lab.git"
+  },
   "homepage": "https://esmirnov.ai/sperm-lab/",
-  "bugs": { "url": "https://github.com/eduard-s/sperm-lab/issues" },
-  "keywords": ["sperm", "biology", "education", "motility", "simulation", "react", "typescript", "canvas"],
-  "publishConfig": { "access": "public" },
-  "sideEffects": ["**/*.css"],
+  "bugs": {
+    "url": "https://github.com/eduard-s/sperm-lab/issues"
+  },
+  "keywords": [
+    "sperm",
+    "biology",
+    "education",
+    "motility",
+    "simulation",
+    "react",
+    "typescript",
+    "canvas"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
   "main": "./dist/react/index.js",
   "types": "./dist/react/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/react/index.d.ts", "import": "./dist/react/index.js" },
-    "./react": { "types": "./dist/react/index.d.ts", "import": "./dist/react/index.js" },
-    "./core": { "types": "./dist/core/index.d.ts", "import": "./dist/core/index.js" },
+    ".": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
     "./styles.css": "./dist/styles.css",
     "./package.json": "./package.json"
   },
-  "files": ["dist", "LICENSE", "README.md", "docs"],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "docs"
+  ],
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 4177",
     "build": "tsc -p tsconfig.build.json && node scripts/copy-css.mjs",
@@ -31,8 +63,14 @@
     "prepack": "npm run build",
     "preview": "vite preview --host 127.0.0.1 --port 4177"
   },
-  "peerDependencies": { "react": ">=18.2.0 <20" },
-  "peerDependenciesMeta": { "react": { "optional": true } },
+  "peerDependencies": {
+    "react": ">=18.2.0 <20"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
@@ -42,5 +80,7 @@
     "react-dom": "19.2.6",
     "vite": "8.3.6"
   },
-  "engines": { "node": ">=22.12" }
+  "engines": {
+    "node": ">=22.12"
+  }
 }

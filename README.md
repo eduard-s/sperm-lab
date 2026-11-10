@@ -1,6 +1,7 @@
 # Sperm Lab
 
-Explore sperm movement, anatomy, and DNA through 12 educational scenarios.
+Explore sperm movement, anatomy, and DNA in one live sample.
+Combine 12 independent factor controls.
 Make a current with the mouse.
 Select a cell to inspect its head, midpiece, tail, and DNA.
 
@@ -24,7 +25,7 @@ import { SpermLab } from "sperm-lab";
 import "sperm-lab/styles.css";
 
 export default function App() {
-  return <SpermLab seed={42} count={48} initialFactor="heat" />;
+  return <SpermLab seed={42} count={48} initialFactors={{ smoking: 0.5, heat: 0.3 }} />;
 }
 ```
 
@@ -43,12 +44,18 @@ export default function Lab() {
 
 ## Explore the lab
 
-1. Select a factor.
-2. Compare the reference sample with the fictional later sample.
-3. Drag across a sample to make a current.
+1. Adjust a factor slider.
+2. Combine more factors in the same sample.
+3. Drag across the sample to make a current.
 4. Select a cell to examine its anatomy.
 5. Use the DNA view to reveal hidden damage.
-6. Try the discovery challenges.
+6. Use the prepared morphology sample to find different cell forms.
+
+All 12 factor sliders remain visible.
+Each slider has its own value and explanation.
+The Development point slider changes an illustrative stage, without real days.
+The sample can show forward movement, slow movement, circles, and immobility.
+Cell traits include head differences, two heads, tail differences, two tails, and midpiece damage.
 
 The lab separates movement, vitality, shape, and DNA damage.
 An immotile sperm can be alive.
@@ -76,19 +83,22 @@ Regular exercise does not share a fixed damage rule with high-volume endurance e
 
 ## Model limits
 
-All cells, counts, scenario strengths, and development stages are fictional teaching examples.
+All cells, counts, factor strengths, and development stages are fictional teaching examples.
 The model does not calculate personal fertility, clinical doses, or treatment outcomes.
 Its movement model does not solve fluid dynamics.
 
-A factor creates a new fictional cohort for comparison.
+Factor controls prepare one new synthetic population with the selected combination.
 Motion steps do not change the shape or DNA of existing cells.
-The progress control represents an illustrative development sequence.
-It does not represent a fixed number of days.
+Combined controls use authored rules for possible pathways.
+Those rules do not measure combined clinical risk.
+
+Multiple heads and multiple tails are independent morphology examples.
+The model does not assign those forms to a particular lifestyle factor.
+The prepared morphology sample guarantees visible examples for inspection.
+It does not show the frequency of those forms in people.
 
 Uncertain factors use possible-pathway examples.
 The example is not a measured effect size or a prediction.
-The model does not add the risks of different factors.
-
 Read the [model and evidence guide](docs/MODEL.md) for the scientific scope.
 
 ## Use the headless simulation
@@ -105,9 +115,7 @@ import {
 const sample = createSimulation({
   seed: 42,
   count: 48,
-  factor: "heat",
-  progress: 1,
-  intensity: 0.6,
+  factors: { smoking: 0.5, heat: 0.3 },
 });
 
 stepSimulation(sample, 1 / 60);
