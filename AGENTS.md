@@ -2,6 +2,8 @@
 
 Keep the simulation, renderer, React component, styles, and demo in this repository.
 Use the public package API in the personal site.
+Publish only as `@esmirnov.ai/sperm-lab`.
+Use the `@esmirnov.ai` scope in package imports, installation steps, and npm links.
 Keep React optional for consumers of the headless core.
 Use no backend or analytics service.
 
@@ -9,6 +11,8 @@ Keep all 12 factor sliders visible and independent.
 Combine their values in one live sample.
 Keep dropdown factor selection and baseline comparisons out of the interface.
 Keep anatomy inspection near the sample.
+Keep a visible Explore button that follows the selected swimmer.
+Use normal clicks or taps for selection. Do not require a context menu.
 
 Use a transparent canvas, native controls, thin rules, and the existing sage, charcoal, and clay palette.
 Use normal document flow on desktop and phones.

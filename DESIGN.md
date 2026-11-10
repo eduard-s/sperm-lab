@@ -13,6 +13,8 @@ Use thin rules and plain sections.
 Keep live defects large enough to distinguish in the sample.
 Use a nonmodal detail popup anchored to the selected cell.
 Keep the enlarged anatomy view optional.
+Keep Explore visible beside Pause and Reset sample.
+Use normal clicks or taps without a context menu.
 Use normal document flow without pinned panels or inner scroll containers.
 
 On narrow embeds, put the controls below the sample.

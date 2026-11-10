@@ -240,6 +240,14 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
     const index = cells.findIndex(cell => cell.id === selectedId);
     choose(cells[(index + 1) % cells.length].id, true);
   }
+  function explore() {
+    if (popupOpen) { setPopupOpen(false); setStatus("Cell exploration is off. Click Explore to follow a swimmer."); return; }
+    const cells = world.current?.cells;
+    const target = selected ?? cells?.find(cell => cell.alive && cell.speed > 0) ?? cells?.[0];
+    if (!target) return;
+    choose(target.id, true);
+    requestAnimationFrame(() => canvas.current?.focus({ preventScroll: true }));
+  }
   function inspectDefect(id: Defect) {
     const cells = world.current?.cells.filter(cell => cellMatchesDefect(cell, id)) ?? [];
     if (!cells.length) return;
@@ -332,12 +340,12 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
     <div className="sl-workbench">
       {controlColumn("left")}
       <section className="sl-field" aria-label="Live sperm sample">
-        <div className="sl-sample-bar"><div><h2>{prepared ? "Prepared defect examples" : defaults.teachingPopulation ? "Illustrative sample" : "Live sample"}</h2><span>{metrics.total} fictional cells</span></div><div className="sl-actions"><button type="button" aria-pressed={paused} onClick={() => setPaused(value => !value)}>{paused ? "Resume" : "Pause"}</button><button type="button" onClick={reset}>Reset sample</button></div></div>
+        <div className="sl-sample-bar"><div><h2>{prepared ? "Prepared defect examples" : defaults.teachingPopulation ? "Illustrative sample" : "Live sample"}</h2><span>{metrics.total} fictional cells</span></div><div className="sl-actions"><button className="sl-explore" type="button" aria-pressed={popupOpen} aria-controls={`${prefix}-sample`} onClick={explore}>Explore</button><button type="button" aria-pressed={paused} onClick={() => setPaused(value => !value)}>{paused ? "Resume" : "Pause"}</button><button type="button" onClick={reset}>Reset sample</button></div></div>
         <div className="sl-concentration"><span id={`${prefix}-concentration`}>Concentration</span><output data-concentration={metrics.total} aria-labelledby={`${prefix}-concentration`}>{metrics.total} cells / model field</output><small>Synthetic model count. No clinical units.</small></div>
         {defaults.teachingPopulation && !prepared && <p className="sl-teaching-population">The teaching sample includes common defect examples. Counts do not show their frequency in people.</p>}
         {unavailable && <p role="status">Canvas is unavailable. The sample counts, cell inspector, and factor explanations remain available.</p>}
-        <div className="sl-canvas-wrap" data-popup={popupOpen && Boolean(selected)} style={{ "--sl-popup-min-height": `${popupHeight}px` } as CSSProperties}><canvas ref={canvas} tabIndex={0} role="group" aria-label="Interactive sperm sample. Drag to stir. Click a cell for details. Arrow keys create currents. Enter selects the next cell and opens its details. Escape closes details. Space pauses." aria-describedby={`${prefix}-help`}
-          onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={() => actions.current.release()} onLostPointerCapture={() => { pointer.current = null; }} onKeyDown={keyboard}>The sample needs canvas support. Use the cell inspector and model counts for a text alternative.</canvas>
+        <div id={`${prefix}-sample`} className="sl-canvas-wrap" data-popup={popupOpen && Boolean(selected)} style={{ "--sl-popup-min-height": `${popupHeight}px` } as CSSProperties}><canvas ref={canvas} tabIndex={0} role="group" aria-label="Interactive sperm sample. Use Explore to follow a swimmer. Drag to stir. Click a cell for details. Arrow keys create currents. Enter selects the next cell and opens its details. Escape closes details. Space pauses." aria-describedby={`${prefix}-help`}
+          onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={() => actions.current.release()} onLostPointerCapture={() => { pointer.current = null; }} onKeyDown={keyboard} onContextMenu={event => event.preventDefault()}>The sample needs canvas support. Use the cell inspector and model counts for a text alternative.</canvas>
           {popupOpen && selected && <>
             <svg className="sl-popup-connector" aria-hidden="true"><line ref={popupConnector} /></svg>
             <div ref={popup} className="sl-cell-popup" role="dialog" aria-modal="false" aria-labelledby={`${prefix}-popup-title`} data-cell-popup="true" data-cell-id={selected.id}>
@@ -347,8 +355,8 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
             </div>
           </>}
         </div>
-        <p id={`${prefix}-help`} className="sl-canvas-help">Drag to stir. Click a cell to inspect it. On touch screens, tap a cell or use Create a current.</p>
-        <div className="sl-sample-tools"><button type="button" onClick={() => current(.3, .1)} disabled={paused}>Create a current</button><button type="button" onClick={() => nextCell()}>Inspect next cell</button><button type="button" onClick={prepareExamples}>Inspect defect examples</button></div>
+        <p id={`${prefix}-help`} className="sl-canvas-help">Use Explore to follow a swimmer. Click or tap another cell to switch. Drag to stir the sample.</p>
+        <div className="sl-sample-tools"><button type="button" onClick={() => current(.3, .1)} disabled={paused}>Create a current</button><button type="button" onClick={() => nextCell()}>Next swimmer</button><button type="button" onClick={prepareExamples}>Inspect defect examples</button></div>
         <div className="sl-display"><label><input type="checkbox" checked={dna} onChange={event => setDna(event.target.checked)} />DNA overlay</label><label><input type="checkbox" checked={trails} onChange={event => setTrails(event.target.checked)} />Trails</label><label><input type="checkbox" checked={slowMotion} onChange={event => setSlowMotion(event.target.checked)} />Slow motion</label></div>
         <p className="sl-overlay-note">Red marks illustrated abnormalities. Disconnected red pieces inside the nucleus show schematic DNA fragmentation. The overlay is not ordinary microscopy.</p>
         <p className="sl-model-note">Sliders prepare an illustrative later cohort. Counts do not predict personal fertility.</p>

@@ -4,11 +4,11 @@
 
 | Import | Content |
 | --- | --- |
-| `sperm-lab` | React component and component types. |
-| `sperm-lab/react` | Alias for the React entry. |
-| `sperm-lab/core` | Simulation, factors, geometry, metrics, and prepared samples. |
-| `sperm-lab/styles.css` | Scoped component styles. |
-| `sperm-lab/package.json` | Package metadata. |
+| `@esmirnov.ai/sperm-lab` | React component and component types. |
+| `@esmirnov.ai/sperm-lab/react` | Alias for the React entry. |
+| `@esmirnov.ai/sperm-lab/core` | Simulation, factors, geometry, metrics, and prepared samples. |
+| `@esmirnov.ai/sperm-lab/styles.css` | Scoped component styles. |
+| `@esmirnov.ai/sperm-lab/package.json` | Package metadata. |
 
 The core entry does not import React or use browser globals.
 The React entry keeps its client directive for compatible frameworks.
@@ -16,8 +16,8 @@ The React entry keeps its client directive for compatible frameworks.
 ## React component
 
 ```tsx
-import { SpermLab } from "sperm-lab";
-import "sperm-lab/styles.css";
+import { SpermLab } from "@esmirnov.ai/sperm-lab";
+import "@esmirnov.ai/sperm-lab/styles.css";
 
 <SpermLab
   seed={42}
@@ -71,6 +71,9 @@ Use the component controls to pause or resume motion.
 ## Live inspection and concentration
 
 The component draws defects directly in the live sample.
+Explore selects a moving swimmer and opens its details.
+If a cell is already selected, Explore keeps that selection.
+Select Explore again to dismiss the popup.
 Select a visible head, midpiece, or tail to inspect its cell.
 A nonmodal detail popup tracks the selected cell during motion.
 The popup shows movement, vitality, head, tail, midpiece, and DNA traits.
@@ -78,6 +81,8 @@ DNA details obey the DNA overlay control.
 
 Escape, the close button, and an empty-space click dismiss the popup.
 Enter on the focused canvas selects the next cell and opens its details.
+Next swimmer selects the next cell with a button.
+The canvas blocks the browser context menu.
 Tab reaches the popup controls.
 Full anatomy dismisses the popup and scrolls to the larger diagram.
 Popup motion obeys pause and reduced-motion preferences.

@@ -58,6 +58,8 @@
 .sl-teaching-population { margin: 7px 0 0; font-size: 10px; line-height: 1.6; opacity: .8; }
 .sl-actions { display: flex; gap: 4px; }
 .sl-actions button { border: 0; padding-inline: 8px; }
+.sl-actions .sl-explore { border: 1px solid var(--sl-rule); }
+.sl-actions .sl-explore[aria-pressed="true"] { color: var(--sl-accent); background: color-mix(in oklch, var(--sl-clay) 14%, transparent); }
 .sl-canvas-wrap { position: relative; width: 100%; aspect-ratio: 1.35; min-height: 300px; max-height: 480px; }
 .sl-canvas-wrap canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: pan-y pinch-zoom; }
 .sl-canvas-wrap canvas:active { cursor: grabbing; }

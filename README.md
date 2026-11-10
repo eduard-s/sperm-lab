@@ -5,7 +5,7 @@ Combine 12 independent factor controls.
 Make a current with the mouse.
 Select a cell to inspect its head, midpiece, tail, and DNA.
 
-[Open the live lab](https://esmirnov.ai/sperm-lab/) · [Source code](https://github.com/eduard-s/sperm-lab) · [npm package](https://www.npmjs.com/package/sperm-lab)
+[Open the live lab](https://esmirnov.ai/sperm-lab/) · [Source code](https://github.com/eduard-s/sperm-lab) · [npm package](https://www.npmjs.com/package/@esmirnov.ai/sperm-lab)
 
 The package includes a TypeScript simulation and a React component.
 The component runs in the browser without a backend.
@@ -17,12 +17,12 @@ Use Node.js 22.12 or a later version for the development tools.
 The React component supports React 18.2 through React 19.
 
 ```sh
-npm install sperm-lab
+npm install @esmirnov.ai/sperm-lab
 ```
 
 ```tsx
-import { SpermLab } from "sperm-lab";
-import "sperm-lab/styles.css";
+import { SpermLab } from "@esmirnov.ai/sperm-lab";
+import "@esmirnov.ai/sperm-lab/styles.css";
 
 export default function App() {
   return <SpermLab seed={42} count={48} initialFactors={{ smoking: 0.5, heat: 0.3 }} />;
@@ -35,7 +35,7 @@ Import the stylesheet from your page or layout.
 ```tsx
 "use client";
 
-import { SpermLab } from "sperm-lab";
+import { SpermLab } from "@esmirnov.ai/sperm-lab";
 
 export default function Lab() {
   return <SpermLab />;
@@ -47,7 +47,7 @@ export default function Lab() {
 1. Adjust a factor slider.
 2. Combine more factors in the same sample.
 3. Drag across the sample to make a current.
-4. Select a cell to open its detail popup.
+4. Select Explore to follow a swimmer and examine its details.
 5. Use the DNA view to reveal hidden damage.
 6. Use the prepared morphology sample to find different cell forms.
 
@@ -63,6 +63,7 @@ Typical shape and forward movement do not prove that DNA is intact.
 ## Live cell inspection
 
 Defects appear in the live sample as cells move.
+Select Explore to follow a swimmer without a context menu.
 Select a visible head, midpiece, or tail to inspect its cell.
 The detail popup tracks the selected cell.
 It shows movement, vitality, head shape, tail shape, midpiece traits, and DNA integrity.
@@ -71,7 +72,7 @@ The popup keeps the sample interactive.
 Press Escape to dismiss the popup.
 Click empty sample space to clear the selection.
 Select Full anatomy for the enlarged diagram.
-Use Inspect next cell for keyboard inspection.
+Select Next swimmer to inspect another cell.
 The focused canvas also accepts Enter to select the next cell.
 
 The Concentration readout shows the current count as cells per model field.
@@ -149,7 +150,7 @@ import {
   stepSimulation,
   getMetrics,
   getTailPoints,
-} from "sperm-lab/core";
+} from "@esmirnov.ai/sperm-lab/core";
 
 const sample = createSimulation({
   seed: 42,

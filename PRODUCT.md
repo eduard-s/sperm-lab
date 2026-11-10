@@ -20,11 +20,13 @@ Every factor explains its mechanism, timescale, evidence, and limits.
 
 Visitors explore the lab on a phone or laptop.
 Developers install the npm package in their own sites.
+Use the public package name `@esmirnov.ai/sperm-lab`.
 The package needs no backend or account.
 
 ## Principles
 
 Keep movement, vitality, shape, and DNA damage separate.
+Use Explore to follow a swimmer with normal clicks or taps.
 Show head, tail, and midpiece differences explicitly.
 Include all 18 selected morphology, injury, and movement examples.
 Show small, large, tapered, and round heads.

@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+assert.equal(manifest.name, "@esmirnov.ai/sperm-lab");
 const temp = mkdtempSync(join(tmpdir(), "sperm-lab-package-"));
 const npm = (args, cwd = temp) => execFileSync("npm", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 const node = source => execFileSync(process.execPath, ["--input-type=module", "-e", source], { cwd: temp, encoding: "utf8" });
@@ -35,7 +36,7 @@ try {
     import assert from 'node:assert/strict';
     import { readFileSync } from 'node:fs';
     import { fileURLToPath } from 'node:url';
-    import { FACTORS, DEFECT_CATALOG, createSimulation, stepSimulation, getMetrics, getTailPoints, getDefectCounts, createChallengeSimulation, createDefectSimulation } from 'sperm-lab/core';
+    import { FACTORS, DEFECT_CATALOG, createSimulation, stepSimulation, getMetrics, getTailPoints, getDefectCounts, createChallengeSimulation, createDefectSimulation } from '@esmirnov.ai/sperm-lab/core';
     assert.equal(FACTORS.length, 12);
     const world = createSimulation({ seed: 42, count: 32, factors: { heat: .6, smoking: .4 }, progress: 1 });
     stepSimulation(world, 1 / 60);
@@ -51,12 +52,12 @@ try {
     const catalogCounts = getDefectCounts(teaching);
     assert.equal(DEFECT_CATALOG.length, 18);
     for (const defect of DEFECT_CATALOG) assert(catalogCounts[defect.id] > 0, defect.id);
-    assert(readFileSync(fileURLToPath(import.meta.resolve('sperm-lab/styles.css')), 'utf8').includes('.sl-lab'));
+    assert(readFileSync(fileURLToPath(import.meta.resolve('@esmirnov.ai/sperm-lab/styles.css')), 'utf8').includes('.sl-lab'));
     process.stdout.write(JSON.stringify({ factors: FACTORS.length, cells: world.cells.length }));
   `));
   assert.equal(result.factors, 12);
   writeFileSync(join(temp, "core-consumer.mts"), `
-    import { createSimulation, stepSimulation, type FactorId } from 'sperm-lab/core';
+    import { createSimulation, stepSimulation, type FactorId } from '@esmirnov.ai/sperm-lab/core';
     const factor: FactorId = 'exercise';
     const sample = createSimulation({ seed: 7, count: 24, factors: { [factor]: .5, heat: .3 }, progress: 1 });
     stepSimulation(sample, 1 / 60);
@@ -69,9 +70,9 @@ try {
       import assert from 'node:assert/strict';
       import React from 'react';
       import { renderToString } from 'react-dom/server';
-      import { SpermLab } from 'sperm-lab';
-      import { SpermLab as Alias } from 'sperm-lab/react';
-      import { FACTORS, DEFECT_CATALOG } from 'sperm-lab/core';
+      import { SpermLab } from '@esmirnov.ai/sperm-lab';
+      import { SpermLab as Alias } from '@esmirnov.ai/sperm-lab/react';
+      import { FACTORS, DEFECT_CATALOG } from '@esmirnov.ai/sperm-lab/core';
       assert.equal(SpermLab, Alias);
       const html = renderToString(React.createElement(SpermLab, { seed: 42, count: 24 }));
       for (const factor of FACTORS) assert(html.includes(factor.title.replaceAll('&', '&amp;')), factor.title);
@@ -82,6 +83,7 @@ try {
       assert(html.includes('data-concentration="24"'));
       assert(html.replaceAll('<!-- -->', '').includes('24 cells / model field'));
       assert(!html.includes('Development point'));
+      assert(html.includes('>Explore</button>'));
       const catalog = Object.fromEntries([...html.matchAll(/data-defect="([^"]+)" data-count="(\\d+)"/g)].map(match => [match[1], Number(match[2])]));
       for (const defect of DEFECT_CATALOG) assert(catalog[defect.id] > 0, defect.id);
       const configured = renderToString(React.createElement(SpermLab, { initialFactors: { smoking: .5, heat: .3 } }));
@@ -93,7 +95,7 @@ try {
     assert(markup.length > 1000);
     console.log(`React ${version}: server rendering and all 12 factors pass.`);
   }
-  const entry = readFileSync(join(temp, "node_modules/sperm-lab/dist/react/index.js"), "utf8");
+  const entry = readFileSync(join(temp, "node_modules/@esmirnov.ai/sperm-lab/dist/react/index.js"), "utf8");
   assert(/^['"]use client['"];/.test(entry), "The React entry must keep its client directive.");
   console.log(`Package smoke tests pass: ${paths.length} files, ${pack.size} compressed bytes. Node ${process.versions.node}.`);
 } finally {

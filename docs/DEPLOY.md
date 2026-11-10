@@ -38,7 +38,7 @@ Complete the npm authentication prompt when the registry requests it.
 ```sh
 npm whoami
 npm publish --access public
-npm view sperm-lab version dist.shasum
+npm view @esmirnov.ai/sperm-lab version dist.shasum
 ```
 
 Use a new version for every later publication.
@@ -60,7 +60,7 @@ The demo does not need a backend, database, or server function.
 Install a fixed public package version in `me-landing`.
 
 ```sh
-npm install --save-exact sperm-lab@0.4.0
+npm install --save-exact @esmirnov.ai/sperm-lab@0.4.1
 ```
 
 Use the shared experiment page at `/sperm-lab/`.
