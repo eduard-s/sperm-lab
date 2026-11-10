@@ -8,6 +8,8 @@ Keep the component and canvas transparent.
 Use one large sample with 12 visible, independent factor sliders.
 Keep all sliders in the document flow.
 Use native controls with visible focus and 44-pixel targets.
+Put each slider below its label and value.
+Use the full control width, an 8-pixel track, and a 20-pixel thumb.
 Use thin rules and plain sections.
 
 Keep live defects large enough to distinguish in the sample.

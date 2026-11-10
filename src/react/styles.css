@@ -4,6 +4,7 @@
   --sl-accent: #785448;
   --sl-paper: #eff2ed;
   --sl-rule: color-mix(in oklch, var(--sl-ink) 22%, transparent);
+  --sl-track: color-mix(in oklch, var(--sl-ink) 28%, var(--sl-surface));
   --sl-sage: #6f897c;
   --sl-clay: #a67769;
   --sl-damage: #b82735;
@@ -30,11 +31,16 @@
 .sl-factor-group { min-width: 0; border: 0; padding: 0; margin: 0; }
 .sl-factor-group + .sl-factor-group { padding-top: 16px; border-top: 1px solid var(--sl-rule); }
 .sl-factor-group legend { width: 100%; padding: 0; margin-bottom: 8px; font-size: 13px; line-height: 1.5; font-weight: 600; }
-.sl-factor + .sl-factor { margin-top: 7px; }
-.sl-factor-row { display: grid; grid-template-columns: minmax(79px, 1.2fr) minmax(40px, 1fr) 24px; align-items: center; gap: 7px; }
-.sl-factor-row label { font-size: 12px; line-height: 1.35; overflow-wrap: normal; }
-.sl-factor-row input[type="range"] { display: block; width: 100%; min-width: 0; min-height: 30px; padding: 0; margin: 0; accent-color: var(--sl-accent); cursor: pointer; }
-.sl-factor-row output { font-size: 11px; font-variant-numeric: tabular-nums; text-align: right; opacity: .8; }
+.sl-factor + .sl-factor { margin-top: 12px; }
+.sl-factor-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 8px; }
+.sl-factor-row label { grid-column: 1; grid-row: 1; font-size: 13px; line-height: 18px; overflow-wrap: normal; }
+.sl-factor-row input[type="range"] { grid-column: 1 / -1; grid-row: 2; appearance: none; -webkit-appearance: none; display: block; width: 100%; min-width: 0; height: 44px; padding: 0; margin: 0; border: 0; background: transparent; accent-color: var(--sl-accent); cursor: pointer; }
+.sl-factor-row input[type="range"]::-webkit-slider-runnable-track { height: 8px; border-radius: 999px; background: linear-gradient(to right, var(--sl-accent) 0 var(--sl-progress), var(--sl-track) var(--sl-progress) 100%); }
+.sl-factor-row input[type="range"]::-moz-range-track { height: 8px; border-radius: 999px; background: var(--sl-track); }
+.sl-factor-row input[type="range"]::-moz-range-progress { height: 8px; border-radius: 999px; background: var(--sl-accent); }
+.sl-factor-row input[type="range"]::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin-top: -6px; border: 0; border-radius: 50%; background: var(--sl-accent); }
+.sl-factor-row input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: var(--sl-accent); }
+.sl-factor-row output { grid-column: 2; grid-row: 1; font-size: 12px; line-height: 18px; font-variant-numeric: tabular-nums; text-align: right; opacity: .8; }
 .sl-factor-help { min-width: 0; }
 .sl-factor-help summary { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 26px; width: 100%; cursor: pointer; font-size: 10px; color: var(--sl-accent); list-style: none; }
 .sl-factor-help summary::-webkit-details-marker { display: none; }
@@ -165,8 +171,6 @@
 .sl-prepared-note button { margin-top: 3px; padding-inline: 0; border: 0; text-decoration: underline; text-underline-offset: 3px; }
 @container sperm-lab (max-width: 1000px) {
   .sl-workbench { grid-template-columns: minmax(0, 1fr) minmax(0, 2.3fr) minmax(0, 1fr); gap: 18px 18px; }
-  .sl-factor-row { grid-template-columns: minmax(68px, 1.1fr) minmax(32px, 1fr) 22px; gap: 5px; }
-  .sl-factor-row label { font-size: 11px; }
   .sl-canvas-wrap { min-height: 280px; }
   .sl-defect-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -174,8 +178,6 @@
   .sl-workbench { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "field field" "readouts readouts" "catalog catalog" "inspector inspector" "left right"; gap: 22px; }
   .sl-defect-catalog { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
   .sl-controls { padding-top: 18px; border-top: 1px solid var(--sl-rule); }
-  .sl-factor-row { grid-template-columns: minmax(100px, 1.2fr) minmax(50px, 1fr) 28px; gap: 8px; }
-  .sl-factor-row label { font-size: 12px; }
   .sl-factor-row input[type="range"] { min-height: 44px; }
   .sl-factor-help summary { min-height: 36px; }
   .sl-canvas-wrap { min-height: 300px; max-height: 450px; aspect-ratio: 1.6; }
@@ -186,8 +188,6 @@
   .sl-workbench { grid-template-columns: minmax(0, 1fr); grid-template-areas: "field" "readouts" "catalog" "inspector" "left" "right"; }
   .sl-defect-catalog { grid-template-columns: minmax(0, 1fr); }
   .sl-canvas-wrap { min-height: 270px; max-height: 360px; aspect-ratio: 1.15; }
-  .sl-factor-row { grid-template-columns: minmax(110px, 1.2fr) minmax(80px, 1fr) 30px; }
-  .sl-factor-row label { font-size: 13px; }
   .sl-factor-help summary { min-height: 38px; font-size: 11px; }
   .sl-factor-help p, .sl-factor-help a { font-size: 12px; }
   .sl-factor-help a { min-height: 44px; }
@@ -199,7 +199,6 @@
   .sl-mechanisms > ul { grid-template-columns: minmax(0, 1fr); }
 }
 @container sperm-lab (max-width: 330px) {
-  .sl-factor-row { grid-template-columns: 104px minmax(50px, 1fr) 26px; gap: 6px; }
   .sl-readouts dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .sl-sample-tools button { font-size: 10px; }
 }
@@ -207,5 +206,6 @@
 @media (forced-colors: active) {
   .sl-lab { --sl-ink: CanvasText; --sl-accent: LinkText; --sl-rule: CanvasText; }
   .sl-canvas-wrap { border: 1px solid CanvasText; }
+  .sl-factor-row input[type="range"] { appearance: auto; -webkit-appearance: auto; }
 }
 @media print { .sl-lab canvas, .sl-actions, .sl-sample-tools, .sl-factor-row input { display: none; } }

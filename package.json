@@ -1,6 +1,6 @@
 {
   "name": "@esmirnov.ai/sperm-lab",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "An interactive sperm education lab with 12 factors, a headless TypeScript simulation, and an embeddable React component.",
   "type": "module",
   "license": "MIT",

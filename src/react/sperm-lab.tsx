@@ -321,7 +321,7 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
           return <div className="sl-factor" key={id}>
             <div className="sl-factor-row">
               <label htmlFor={rangeId}>{shortLabels[id]}</label>
-              <input id={rangeId} data-factor={id} type="range" min="0" max="100" step="1" value={value} aria-label={shortLabels[id] === factor.title ? factor.title : `${shortLabels[id]}: ${factor.title}`} aria-valuetext={`${value} of 100, relative illustrative setting`} onChange={event => changeFactor(id, Number(event.target.value) / 100)} />
+              <input id={rangeId} data-factor={id} type="range" min="0" max="100" step="1" value={value} aria-label={shortLabels[id] === factor.title ? factor.title : `${shortLabels[id]}: ${factor.title}`} aria-valuetext={`${value} of 100, relative illustrative setting`} style={{ "--sl-progress": `${value}%` } as CSSProperties} onChange={event => changeFactor(id, Number(event.target.value) / 100)} />
               <output htmlFor={rangeId}>{value}</output>
             </div>
             <details className="sl-factor-help"><summary><span>About {shortLabels[id].toLowerCase()}</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5 6 3 3 3-3" /></svg></summary>
