@@ -16,6 +16,8 @@ Use normal clicks or taps for selection. Do not require a context menu.
 
 Use a transparent canvas, native controls, thin rules, and the existing sage, charcoal, and clay palette.
 Use normal document flow on desktop and phones.
+On phones, put all controls directly below the live sample.
+Put the notes, defect catalog, and anatomy explanation after all controls.
 Keep keyboard input, touch scrolling, reduced-motion support, and suspension in hidden tabs.
 
 Separate movement, vitality, shape, and DNA damage.

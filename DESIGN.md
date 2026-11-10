@@ -19,7 +19,8 @@ Keep Explore visible beside Pause and Reset sample.
 Use normal clicks or taps without a context menu.
 Use normal document flow without pinned panels or inner scroll containers.
 
-On narrow embeds, put the controls below the sample.
+On narrow embeds, put all controls directly below the sample.
+Put the sample notes, defect catalog, and anatomy explanation after the controls.
 Use container queries for the component layout.
 Permit native vertical touch scrolling and pinch zoom over the canvas.
 
