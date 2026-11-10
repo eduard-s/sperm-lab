@@ -2,20 +2,21 @@
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import {
-  FACTORS, ANATOMY_SOURCES, createSimulation, createDefectSimulation, stepSimulation, getMetrics, findCell, isSlow,
+  FACTORS, ANATOMY_SOURCES, DEFECT_CATALOG, cellMatchesDefect, getDefectCounts, createSimulation, createDefectSimulation, stepSimulation, getMetrics, findCell, isSlow,
   type FactorId, type Simulation, type SpermCell,
 } from "../core/index.js";
 import { paintSimulation, type SpermPalette } from "./renderer.js";
 
 type Metrics = ReturnType<typeof getMetrics>;
 type Factors = Partial<Record<FactorId, number>>;
-type Defect = "head" | "two-heads" | "tail" | "two-tails" | "midpiece" | "dna" | "slow" | "still" | "circling";
+type Defect = typeof DEFECT_CATALOG[number]["id"];
 export type SpermLabMetrics = Metrics;
 export type SpermLabProps = {
   seed?: number;
   count?: number;
   initialFactors?: Factors;
   initialFactor?: FactorId;
+  teachingPopulation?: boolean;
   className?: string;
   style?: CSSProperties;
   onMetrics?: (metrics: SpermLabMetrics) => void;
@@ -32,29 +33,18 @@ const shortLabels: Record<FactorId, string> = {
   stress: "Chronic stress", sleep: "Poor sleep", heat: "Prolonged heat", fever: "Fever", metabolic: "Metabolic stress",
   androgens: "External androgens", pesticides: "Certain pesticides",
 };
-const defects: { id: Defect; label: string; metric: keyof Metrics; matches: (cell: SpermCell) => boolean }[] = [
-  { id: "head", label: "Head shape", metric: "headDefects", matches: cell => cell.headDefect },
-  { id: "two-heads", label: "Two heads", metric: "multiHead", matches: cell => cell.headCount === 2 },
-  { id: "tail", label: "Tail shape", metric: "tailDefects", matches: cell => cell.tailDefect },
-  { id: "two-tails", label: "Two tails", metric: "multiTail", matches: cell => cell.tailCount === 2 },
-  { id: "midpiece", label: "Midpiece damage", metric: "midpieceDamaged", matches: cell => cell.midpieceDamage },
-  { id: "dna", label: "DNA damage", metric: "dnaDamaged", matches: cell => cell.dnaDamage },
-  { id: "slow", label: "Slow", metric: "slow", matches: isSlow },
-  { id: "still", label: "Still", metric: "immotile", matches: cell => cell.speed === 0 || !cell.alive },
-  { id: "circling", label: "Nonprogressive", metric: "nonprogressive", matches: cell => cell.alive && cell.speed > 0 && !cell.progressive },
-];
 function finite(value: number | undefined, fallback: number, min: number, max: number) {
   return Number.isFinite(value) ? Math.min(max, Math.max(min, value!)) : fallback;
 }
 function resolveFactors(input?: Factors, initialFactor?: FactorId): Factors {
   return Object.fromEntries(FACTORS.map(factor => [factor.id, finite(input?.[factor.id], input ? 0 : factor.id === initialFactor ? .65 : 0, 0, 1)]));
 }
-function newWorld(seed: number, count: number, factors: Factors, progress: number) {
-  return createSimulation({ seed, count, factors, progress });
+function newWorld(seed: number, count: number, factors: Factors, progress: number, teachingPopulation: boolean) {
+  return createSimulation({ seed, count, factors, progress, teachingPopulation });
 }
 
-export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor, className = "", style, onMetrics }: SpermLabProps = {}) {
-  const [defaults] = useState(() => ({ seed: finite(seed, 42, 0, 0xffffffff), count: Math.round(finite(count, 48, 8, 120)), factors: resolveFactors(initialFactors, initialFactor) }));
+export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor, teachingPopulation = true, className = "", style, onMetrics }: SpermLabProps = {}) {
+  const [defaults] = useState(() => ({ seed: finite(seed, 42, 0, 0xffffffff), count: Math.round(finite(count, 48, teachingPopulation ? 18 : 8, 120)), factors: resolveFactors(initialFactors, initialFactor), teachingPopulation }));
   const prefix = useId();
   const [factors, setFactors] = useState<Factors>(defaults.factors);
   const [progress, setProgress] = useState(1);
@@ -66,11 +56,13 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
   const [prepared, setPrepared] = useState(false);
   const [status, setStatus] = useState("");
   const [unavailable, setUnavailable] = useState(false);
-  const [metrics, setMetrics] = useState(() => getMetrics(newWorld(defaults.seed, defaults.count, defaults.factors, 1)));
+  const [metrics, setMetrics] = useState(() => getMetrics(newWorld(defaults.seed, defaults.count, defaults.factors, 1, defaults.teachingPopulation)));
+  const [defectCounts, setDefectCounts] = useState(() => getDefectCounts(newWorld(defaults.seed, defaults.count, defaults.factors, 1, defaults.teachingPopulation)));
   const world = useRef<Simulation | null>(null);
   const resetMotion = useRef(false);
   const root = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const inspector = useRef<HTMLElement>(null);
   const callback = useRef(onMetrics); callback.current = onMetrics;
   const settings = useRef({ paused, slowMotion, trails, dna, selectedId });
   settings.current = { paused, slowMotion, trails, dna, selectedId };
@@ -95,11 +87,12 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
     world.current = next;
     const counts = getMetrics(next);
     setMetrics(counts); callback.current?.(counts);
+    setDefectCounts(getDefectCounts(next));
     if (!preserveMotion || !next.cells.some(cell => cell.id === selectedId)) setSelectedId(null);
     actions.current.release(); actions.current.invalidate();
   }
   useEffect(() => {
-    publish(newWorld(defaults.seed, defaults.count, factors, progress), !resetMotion.current);
+    publish(newWorld(defaults.seed, defaults.count, factors, progress, defaults.teachingPopulation), !resetMotion.current);
     resetMotion.current = false;
     setPrepared(false);
   }, [defaults, factors, progress]);
@@ -110,7 +103,7 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     if (media.matches) { settings.current.paused = true; setPaused(true); }
     let frame = 0, idleFrame = 0, last = 0, visible = true, destroyed = false, width = 0, height = 0;
-    let palette: SpermPalette = { ink: "#303832", sage: "#6f897c", clay: "#a67769", accent: "#785448", paper: "#eff2ed" };
+    let palette: SpermPalette = { ink: "#303832", sage: "#6f897c", clay: "#a67769", accent: "#785448", paper: "#eff2ed", damage: "#b82735" };
     function draw() {
       if (!world.current) return;
       paintSimulation(context!, world.current, width, height, palette, {
@@ -157,7 +150,7 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
       if (!root.current) return;
       const computed = getComputedStyle(root.current);
       const token = (name: string, fallback: string) => computed.getPropertyValue(name).trim() || fallback;
-      palette = { ink: computed.color, sage: token("--sl-sage", "#6f897c"), clay: token("--sl-clay", "#a67769"), accent: token("--sl-accent", "#785448"), paper: token("--sl-paper", "#eff2ed") };
+      palette = { ink: computed.color, sage: token("--sl-sage", "#6f897c"), clay: token("--sl-clay", "#a67769"), accent: token("--sl-accent", "#785448"), paper: token("--sl-paper", "#eff2ed"), damage: token("--sl-damage", "#b82735") };
       width = surface.clientWidth; height = surface.clientHeight;
       if (!width || !height) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 1.75, Math.sqrt(1_300_000 / (width * height)));
@@ -203,12 +196,12 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
     choose(cells[(index + 1) % cells.length].id);
   }
   function inspectDefect(id: Defect) {
-    const definition = defects.find(item => item.id === id)!;
-    const cells = world.current?.cells.filter(definition.matches) ?? [];
+    const cells = world.current?.cells.filter(cell => cellMatchesDefect(cell, id)) ?? [];
     if (!cells.length) return;
-    const index = cells.findIndex(cell => cell.id === selectedId);
-    choose(cells[(index + 1) % cells.length].id);
-    if (id === "dna") setDna(true);
+    const target = cells.find(cell => cell.example === id) ?? cells[0];
+    choose(target.id);
+    if (id === "dna-fragmentation") setDna(true);
+    requestAnimationFrame(() => inspector.current?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }));
   }
   function prepareExamples() {
     publish(createDefectSimulation({ seed: defaults.seed, count: defaults.count }));
@@ -221,7 +214,7 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
     setStatus("The sample and controls returned to their initial settings.");
   }
   function restore() {
-    publish(newWorld(defaults.seed, defaults.count, factors, progress)); setPrepared(false);
+    publish(newWorld(defaults.seed, defaults.count, factors, progress, defaults.teachingPopulation)); setPrepared(false);
     setStatus("The sample now uses all current factor settings.");
   }
   function current(dx: number, dy: number) {
@@ -283,19 +276,20 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
     </aside>;
   }
 
-  return <div ref={root} className={`sperm-lab sl-lab sl-lab-v2 ${className}`.trim()} style={style}>
+  return <div ref={root} className={`sperm-lab sl-lab sl-lab-v3 ${className}`.trim()} style={style}>
     <div className="sl-intro-line"><p><strong>Change the factors. Watch one sample.</strong> Each slider acts independently.</p><span>All 12 settings use relative scales.</span></div>
     <div className="sl-workbench">
       {controlColumn("left")}
       <section className="sl-field" aria-label="Live sperm sample">
-        <div className="sl-sample-bar"><div><h2>{prepared ? "Prepared defect examples" : "Live sample"}</h2><span>{metrics.total} fictional cells</span></div><div className="sl-actions"><button type="button" aria-pressed={paused} onClick={() => setPaused(value => !value)}>{paused ? "Resume" : "Pause"}</button><button type="button" onClick={reset}>Reset sample</button></div></div>
+        <div className="sl-sample-bar"><div><h2>{prepared ? "Prepared defect examples" : defaults.teachingPopulation ? "Illustrative sample" : "Live sample"}</h2><span>{metrics.total} fictional cells</span></div><div className="sl-actions"><button type="button" aria-pressed={paused} onClick={() => setPaused(value => !value)}>{paused ? "Resume" : "Pause"}</button><button type="button" onClick={reset}>Reset sample</button></div></div>
+        {defaults.teachingPopulation && !prepared && <p className="sl-teaching-population">The teaching sample includes common defect examples. Counts do not show their frequency in people.</p>}
         {unavailable && <p role="status">Canvas is unavailable. The sample counts, cell inspector, and factor explanations remain available.</p>}
         <div className="sl-canvas-wrap"><canvas ref={canvas} tabIndex={0} role="group" aria-label="Interactive sperm sample. Drag to stir. Click a cell to inspect it. Arrow keys create currents. Enter selects the next cell. Space pauses." aria-describedby={`${prefix}-help`}
           onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={() => actions.current.release()} onLostPointerCapture={() => { pointer.current = null; }} onKeyDown={keyboard}>The sample needs canvas support. Use the cell inspector and model counts for a text alternative.</canvas></div>
         <p id={`${prefix}-help`} className="sl-canvas-help">Drag to stir. Click a cell to inspect it. On touch screens, tap a cell or use Create a current.</p>
         <div className="sl-sample-tools"><button type="button" onClick={() => current(.3, .1)} disabled={paused}>Create a current</button><button type="button" onClick={nextCell}>Inspect next cell</button><button type="button" onClick={prepareExamples}>Inspect defect examples</button></div>
         <div className="sl-display"><label><input type="checkbox" checked={dna} onChange={event => setDna(event.target.checked)} />DNA overlay</label><label><input type="checkbox" checked={trails} onChange={event => setTrails(event.target.checked)} />Trails</label><label><input type="checkbox" checked={slowMotion} onChange={event => setSlowMotion(event.target.checked)} />Slow motion</label></div>
-        <p className="sl-overlay-note">The head contains tightly packed DNA. Clay flecks show model DNA damage when the overlay is on. The damage overlay is schematic.</p>
+        <p className="sl-overlay-note">Red marks illustrated abnormalities. Disconnected red pieces inside the nucleus show schematic DNA fragmentation. The overlay is not ordinary microscopy.</p>
         <div className="sl-development"><label htmlFor={`${prefix}-progress`}>Development point</label><input id={`${prefix}-progress`} type="range" min="0" max="100" value={Math.round(progress * 100)} aria-valuetext={`${Math.round(progress * 100)} of 100, schematic development, not real days`} onChange={event => setProgress(Number(event.target.value) / 100)} /><output htmlFor={`${prefix}-progress`}>{progress === 0 ? "Before" : progress === 1 ? "Later" : "Between"}</output></div>
         <p className="sl-model-note">Sliders prepare an illustrative later cohort. Counts do not predict personal fertility.</p>
         {prepared && <div className="sl-prepared-note"><p>These examples contain head, tail, midpiece, and DNA traits. They do not show the effects of a specific exposure.</p><button type="button" onClick={restore}>Return to current settings</button></div>}
@@ -307,14 +301,24 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
           ["Cells", metrics.total], ["Active motion", metrics.motile], ["Forward", metrics.progressive], ["Slow", metrics.slow],
           ["Nonprogressive", metrics.nonprogressive], ["Still", metrics.immotile], ["Alive", metrics.alive],
         ] as const).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-        <h3>Inspect a trait</h3>
-        <p className="sl-legend-help">Select a count to find an example in this sample. Traits can overlap. Empty traits stay disabled.</p>
-        <div className="sl-defect-legend">{defects.map(defect => <button key={defect.id} type="button" disabled={metrics[defect.metric] === 0} onClick={() => inspectDefect(defect.id)}><TraitIcon kind={defect.id} /><span>{defect.label}</span><b>{defect.id === "dna" && !dna ? "Hidden" : metrics[defect.metric]}</b></button>)}</div>
       </section>
-    <section className="sl-inspector" aria-labelledby={`${prefix}-inspect-title`}>
+      <section className="sl-catalog" aria-labelledby={`${prefix}-catalog-title`}>
+        <header><h2 id={`${prefix}-catalog-title`}>Common examples</h2><p>These curated examples explain separate traits. Their frequency is not clinical prevalence. Select an example to inspect its cell.</p></header>
+        <div className="sl-defect-catalog">{DEFECT_CATALOG.map(defect => {
+          const example = world.current?.cells.find(cell => cell.example === defect.id && cellMatchesDefect(cell, defect.id))
+            ?? world.current?.cells.find(cell => cellMatchesDefect(cell, defect.id));
+          return <button key={defect.id} type="button" data-defect={defect.id} data-count={defectCounts[defect.id]} disabled={defectCounts[defect.id] === 0} onClick={() => inspectDefect(defect.id)} aria-describedby={`${prefix}-defect-${defect.id}`}>
+            <SpecimenThumbnail id={defect.id} cell={example} />
+            <span className="sl-catalog-copy"><strong>{defect.title}</strong><span id={`${prefix}-defect-${defect.id}`}>{defect.description}</span></span>
+            <b>{defect.id === "dna-fragmentation" && !dna ? "Hidden" : defectCounts[defect.id]}</b>
+          </button>;
+        })}</div>
+        <p className="sl-legend-help">Traits can overlap. Counts identify cells in this illustrative sample, not causes or diagnoses.</p>
+      </section>
+    <section ref={inspector} className="sl-inspector" aria-labelledby={`${prefix}-inspect-title`}>
       <header><h2 id={`${prefix}-inspect-title`}>Inside one cell</h2><p>{selected ? `Cell ${selected.id + 1}` : "Click a cell, or select a trait count."}</p></header>
       <div className="sl-inspector-content"><Anatomy cell={selected} dna={dna} /><div className="sl-cell-facts">{selected ? <>
-        <dl><div><dt>Movement</dt><dd>{movementLabel(selected)}</dd></div><div><dt>Relative speed</dt><dd>{selected.alive ? Math.round(selected.speed / .07 * 100) : 0}/100</dd></div><div><dt>Vitality</dt><dd>{selected.alive ? "Alive" : "Nonviable"}</dd></div><div><dt>Head</dt><dd>{selected.headCount === 2 ? "Two heads" : selected.headDefect ? "Head shape difference" : "One typical head"}</dd></div><div><dt>Tail</dt><dd>{selected.tailCount === 2 ? "Two tails" : selected.tailDefect ? "Bent tail" : "One typical tail"}</dd></div><div><dt>Midpiece</dt><dd>{selected.midpieceDamage ? "Damage in the model" : "No modeled damage"}</dd></div><div><dt>DNA</dt><dd>{dna ? selected.dnaDamage ? "Damage in the model" : "No modeled damage" : "Hidden. Use DNA overlay."}</dd></div></dl>
+        <dl><div><dt>Movement</dt><dd>{movementLabel(selected)}</dd></div><div><dt>Relative speed</dt><dd>{selected.alive ? Math.round(selected.speed / .07 * 100) : 0}/100</dd></div><div><dt>Vitality</dt><dd>{selected.alive ? "Alive" : "Nonviable"}</dd></div><div><dt>Head</dt><dd>{selected.headCount === 2 ? "Two heads" : selected.headShape === "typical" ? "One typical head" : `${selected.headShape} head`}</dd></div><div><dt>Tail</dt><dd>{selected.tailCount === 0 ? "Absent tail" : selected.tailCount > 1 ? `${selected.tailCount} tails` : selected.tailShape === "typical" ? "One typical tail" : `${selected.tailShape} tail`}</dd></div><div><dt>Midpiece</dt><dd>{selected.midpieceShape !== "typical" ? `${selected.midpieceShape} midpiece` : selected.midpieceDamage ? "Damage in the model" : "No modeled damage"}</dd></div><div><dt>DNA</dt><dd>{dna ? selected.dnaDamage ? `${selected.dnaFragmentation} illustrated fragments` : "No modeled fragmentation" : "Hidden. Use DNA overlay."}</dd></div></dl>
         <p>Shape, vitality, movement, and DNA are separate traits. An immotile cell can remain alive.</p>
       </> : <p>The head contains tightly packed DNA. The thin section behind the head is the midpiece. It contains mitochondria. Glycolysis along the tail also supplies energy.<br />Select a trait to compare the head, tail, midpiece, DNA, and movement of one cell.</p>}</div></div>
     </section>
@@ -333,45 +337,95 @@ function movementLabel(cell: SpermCell) {
 }
 function traitLabels(cell: SpermCell) {
   const labels = [cell.alive ? "Alive in the model" : "Nonviable in the model"];
-  if (cell.headCount === 2) labels.push("Two heads"); else if (cell.headDefect) labels.push("Head shape difference");
-  if (cell.tailCount === 2) labels.push("Two tails"); else if (cell.tailDefect) labels.push("Tail shape difference");
+  if (cell.headCount === 2) labels.push("Two heads"); else if (cell.headShape !== "typical") labels.push(`${cell.headShape} head`);
+  if (cell.tailCount === 0) labels.push("Absent tail"); else if (cell.tailCount > 1) labels.push(`${cell.tailCount} tails`); else if (cell.tailShape !== "typical") labels.push(`${cell.tailShape} tail`);
+  if (cell.midpieceShape !== "typical") labels.push(`${cell.midpieceShape} midpiece`);
   if (cell.midpieceDamage) labels.push("Midpiece damage");
   return labels;
 }
-function TraitIcon({ kind }: { kind: Defect }) {
-  return <svg viewBox="0 0 32 24" aria-hidden="true"><g>{kind === "dna" ? <><path d="m11 5 10 14M21 5 11 19M12 8h8m-6 4h4m-6 4h8" /></> : kind === "still" ? <><ellipse cx="9" cy="11" rx="4" ry="3" /><path d="M13 11h14" /></> : <><ellipse cx="8" cy={kind === "two-heads" ? 8 : 11} rx={kind === "head" ? 5 : 4} ry={kind === "head" ? 4 : 3} />{kind === "two-heads" && <ellipse cx="8" cy="16" rx="4" ry="3" />}<path d={kind === "tail" ? "M12 11l7 2-3 6 8-4 5 3" : "M12 11c5-8 9 10 17 0"} />{kind === "two-tails" && <path d="M12 12c5 8 9-10 17 6" />}{kind === "midpiece" && <path d="m13 6 3 10m-3-1 3-8" />}</>}</g></svg>;
+
+type Phenotype = Pick<SpermCell, "headCount" | "tailCount" | "headShape" | "tailShape" | "midpieceShape" | "midpieceDamage" | "dnaDamage" | "dnaFragmentation">;
+function phenotype(cell?: SpermCell, id?: Defect): Phenotype {
+  return {
+    headCount: cell?.headCount ?? (id === "double-head" ? 2 : 1),
+    tailCount: cell?.tailCount ?? (id === "absent-tail" ? 0 : id === "double-tail" ? 2 : id === "triple-tail" ? 3 : 1),
+    headShape: cell?.headShape ?? (id === "small-head" ? "small" : id === "large-head" ? "large" : id === "tapered-head" ? "tapered" : id === "round-head" ? "round" : "typical"),
+    tailShape: cell?.tailShape ?? (id === "bent-tail" ? "bent" : id === "coiled-tail" ? "coiled" : id === "short-tail" ? "short" : id === "absent-tail" ? "absent" : "typical"),
+    midpieceShape: cell?.midpieceShape ?? (id === "bent-midpiece" ? "bent" : id === "thick-midpiece" ? "thick" : "typical"),
+    midpieceDamage: cell?.midpieceDamage ?? id === "midpiece-damage",
+    dnaDamage: cell?.dnaDamage ?? id === "dna-fragmentation",
+    dnaFragmentation: cell?.dnaFragmentation ?? (id === "dna-fragmentation" ? 4 : 0),
+  };
+}
+function SpecimenThumbnail({ cell, id }: { cell?: SpermCell; id: Defect }) {
+  if (id === "dna-fragmentation") return <svg className="sl-specimen-thumbnail sl-dna-thumbnail" viewBox="335 150 130 90" aria-hidden="true"><HeadInset model={phenotype(cell, id)} dna={true} label={false} /></svg>;
+  return <svg className="sl-specimen-thumbnail" viewBox="24 65 485 100" aria-hidden="true"><SpecimenDrawing model={phenotype(cell, id)} dna={true} /></svg>;
 }
 function Anatomy({ cell, dna }: { cell?: SpermCell; dna: boolean }) {
-  const heads = cell?.headCount ?? 1, tails = cell?.tailCount ?? 1;
-  const headDefect = Boolean(cell?.headDefect && heads === 1), tailDefect = cell?.tailDefect ?? false;
-  const midpiece = cell?.midpieceDamage ?? false, damaged = Boolean(dna && cell?.dnaDamage);
-  return <svg className="sl-anatomy" viewBox="0 0 520 220" role="img" aria-label={`Enlarged sperm cell: ${heads} head${heads === 2 ? "s" : ""} with compact chromatin, a short thin midpiece, and ${tails} long tail${tails === 2 ? "s" : ""}.${midpiece ? " Model midpiece injury is marked in clay." : ""}${damaged ? " Model DNA damage is marked inside the nucleus." : ""}`}>
+  const model = phenotype(cell);
+  return <svg className="sl-anatomy" viewBox="0 0 520 260" role="img" aria-label={`Enlarged cell: ${model.headCount} head${model.headCount === 2 ? "s" : ""}, ${model.tailCount} tail${model.tailCount === 1 ? "" : "s"}, ${model.headShape} head shape, ${model.tailShape} tail shape, ${model.midpieceShape} midpiece.${dna && model.dnaDamage ? ` DNA fragmentation with ${model.dnaFragmentation} illustrated red pieces. The DNA close-up shows these separate pieces inside the nucleus.` : ""}`}>
     <g className="sl-anatomy-lines"><path d="M60 96V36H27M109 111V171H161M359 108V36H420" /></g>
-    <text x="22" y="24">Head · packed DNA</text><text x="128" y="191">Midpiece · mitochondria</text><text x="377" y="24">Long, fine tail</text>
-    <path className={`sl-anatomy-tail${tailDefect ? " sl-trait-damage" : ""}`} d={tailDefect ? "M125 111C164 111 192 108 221 111C238 114 245 131 259 122C279 99 300 95 325 108S381 129 413 111S466 97 499 110" : "M125 111C174 111 196 114 230 109S281 97 316 108S368 127 405 113S461 96 499 110"} />
-    {tails === 2 && <path className="sl-anatomy-tail" d="M123 113C166 118 195 142 231 136S283 115 320 136S383 151 418 136S467 120 499 135" />}
-    <path className="sl-anatomy-midpiece-smooth" d="M82 111H127" />
-    {midpiece && <path className="sl-anatomy-midpiece-injury" d="M100 111H114" />}
-    {heads === 2 && <g className="sl-anatomy-fork"><path d="M88 111 81 96M88 111 81 125" /></g>}
-    {Array.from({ length: heads }, (_, index) => {
-      const cy = heads === 2 ? index === 0 ? 96 : 125 : 111;
-      const outline = `M85 ${cy}C82 ${cy - 7} 74 ${cy - (headDefect ? 14 : 12)} 62 ${cy - 12}C40 ${cy - 13} 40 ${cy + 13} 62 ${cy + 12}C74 ${cy + (headDefect ? 8 : 12)} 82 ${cy + 7} 85 ${cy}Z`;
-      return <g key={index}><path className={`sl-anatomy-head${headDefect || heads === 2 ? " sl-trait-damage" : ""}`} d={outline} />
-        <path className="sl-acrosomal-cap" d={`M60 ${cy - 10}C43 ${cy - 12} 43 ${cy + 12} 60 ${cy + 10}C55 ${cy + 5} 55 ${cy - 5} 60 ${cy - 10}Z`} />
-        <CompactNucleus cy={cy} damaged={damaged} />
-      </g>;
-    })}
-    <text className="sl-diagram-caption" x="22" y="216">Enlarged anatomy. Chromatin texture and injury colors are schematic.</text>
+    <text x="22" y="24">Head · packed DNA</text><text x="128" y="191">Midpiece · mitochondria</text><text x="377" y="24">Tail</text>
+    <SpecimenDrawing model={model} dna={dna} />
+    <HeadInset model={model} dna={dna} label={true} />
+    <text className="sl-diagram-caption" x="22" y="257">Enlarged schematic. Red marks illustrated abnormalities and DNA fragmentation.</text>
   </svg>;
 }
-
-function CompactNucleus({ cy, damaged }: { cy: number; damaged: boolean }) {
-  return <g className={damaged ? "sl-compact-nucleus sl-compact-nucleus-damaged" : "sl-compact-nucleus"}>
-    <ellipse cx="65" cy={cy} rx="13.5" ry="8.2" />
-    {Array.from({ length: 17 }, (_, index) => {
+function HeadInset({ model, dna, label }: { model: Phenotype; dna: boolean; label: boolean }) {
+  return <g className="sl-head-inset">
+    <g transform="translate(400 190)">
+      <ellipse className="sl-anatomy-head" cx="0" cy="0" rx="46" ry="31" />
+      <path className="sl-acrosomal-cap" d="M-8-28C-55-28-55 28-8 28C-23 12-23-12-8-28Z" />
+      <g transform="scale(2.5) translate(-65 0)"><CompactNucleus cy={0} damaged={Boolean(dna && model.dnaDamage)} pieces={model.dnaFragmentation} /></g>
+    </g>
+    {label && <text className="sl-head-inset-label" x="322" y="241">DNA · enlarged schematic</text>}
+  </g>;
+}
+function SpecimenDrawing({ model, dna }: { model: Phenotype; dna: boolean }) {
+  const tailPaths: Record<string, string> = {
+    typical: "M125 111C174 111 196 114 230 109S281 97 316 108S368 127 405 113S461 96 499 110",
+    bent: "M125 111C164 111 189 108 214 111L244 139C259 151 273 124 300 111S356 109 389 117S453 99 499 111",
+    coiled: "M125 111C157 111 180 109 206 113C252 119 282 151 257 159C228 168 209 128 234 112C262 95 293 121 277 140C260 159 234 140 245 124C255 108 276 124 266 135",
+    short: "M125 111C155 111 179 124 210 113S244 103 262 112",
+    absent: "",
+    irregular: "M125 111C164 111 192 108 221 111C238 114 245 131 259 122C279 99 300 95 325 108S381 129 413 111S466 97 499 110",
+  };
+  const abnormalTail = model.tailShape !== "typical" || model.tailCount !== 1;
+  const midpieceBent = model.midpieceShape === "bent";
+  const midpiecePath = midpieceBent ? "M74 111Q100 102 112 119L127 112" : "M74 111H127";
+  return <>
+    {model.tailCount > 0 && <path className={`sl-anatomy-tail${abnormalTail ? " sl-trait-damage" : ""}`} d={tailPaths[model.tailShape]} />}
+    {model.tailCount >= 2 && <path className="sl-anatomy-tail sl-trait-damage" d="M123 113C166 122 195 146 231 140S283 119 320 140S383 155 418 140S467 124 499 139" />}
+    {model.tailCount === 3 && <path className="sl-anatomy-tail sl-trait-damage" d="M123 109C164 99 195 81 232 88S283 100 320 83S383 68 418 86S467 101 499 82" />}
+    {model.tailCount > 0 && <path className={`sl-anatomy-midpiece-smooth${model.midpieceShape !== "typical" ? " sl-trait-damage" : ""}`} strokeWidth={model.midpieceShape === "thick" ? 10 : 6.5} d={midpiecePath} />}
+    {model.tailCount > 0 && model.midpieceDamage && <path className="sl-anatomy-midpiece-injury" d={midpieceBent ? "M102 113 114 118" : "M100 111H114"} />}
+    {model.headCount === 2 && <g className="sl-anatomy-fork"><path d="M88 111 81 96M88 111 81 125" /></g>}
+    {Array.from({ length: model.headCount }, (_, index) => {
+      const cy = model.headCount === 2 ? index === 0 ? 96 : 125 : 111;
+      const shape = model.headShape;
+      const sx = shape === "small" ? .74 : shape === "large" ? 1.32 : shape === "round" ? .78 : shape === "tapered" ? 1.13 : 1;
+      const sy = shape === "small" ? .72 : shape === "large" ? 1.28 : shape === "round" ? 1.3 : shape === "tapered" ? .64 : 1;
+      const irregular = String(shape) === "irregular";
+      const outline = shape === "round" ? `M85 ${cy}C84 ${cy - 17} 48 ${cy - 17} 45 ${cy}C48 ${cy + 17} 84 ${cy + 17} 85 ${cy}Z` : `M85 ${cy}C82 ${cy - 7} 74 ${cy - (irregular ? 17 : 12)} 62 ${cy - 12}C40 ${cy - 13} 40 ${cy + 13} 62 ${cy + 12}C74 ${cy + (irregular ? 8 : 12)} 82 ${cy + 7} 85 ${cy}Z`;
+      return <g key={index} transform={`translate(65 ${cy}) scale(${sx} ${sy}) translate(-65 ${-cy})`}>
+        <path className={`sl-anatomy-head${shape !== "typical" || model.headCount === 2 || model.tailCount === 0 ? " sl-trait-damage" : ""}`} d={outline} />
+        <path className="sl-acrosomal-cap" d={`M60 ${cy - 10}C43 ${cy - 12} 43 ${cy + 12} 60 ${cy + 10}C55 ${cy + 5} 55 ${cy - 5} 60 ${cy - 10}Z`} />
+        <CompactNucleus cy={cy} damaged={Boolean(dna && model.dnaDamage)} pieces={model.dnaFragmentation} />
+      </g>;
+    })}
+  </>;
+}
+function CompactNucleus({ cy, damaged, pieces }: { cy: number; damaged: boolean; pieces: number }) {
+  const fragmentPaths = [
+    `M55 ${cy - 4}q2-2 5 0`, `M64 ${cy - 5}q2 2 5 0`, `M72 ${cy - 3}q2-1 4 1`,
+    `M56 ${cy + 3}q3 2 5 0`, `M65 ${cy + 2}q2-2 5 0`, `M70 ${cy + 6}q3-1 5-3`,
+  ];
+  return <g className="sl-compact-nucleus">
+    <ellipse className="sl-nucleus-mass" cx="65" cy={cy} rx="13.5" ry="8.2" />
+    {!damaged && Array.from({ length: 17 }, (_, index) => {
       const x = 65 + Math.sin(index * 2.4) * 10.5, y = cy + Math.cos(index * 1.8) * 5.8;
       return <ellipse key={index} className="sl-chromatin-speck" cx={x} cy={y} rx=".8" ry=".6" />;
     })}
-    {damaged && <g className="sl-chromatin-fragments"><path d={`m59 ${cy - 4} 4 2m2 4 4-2m-7 5 3-1`} /></g>}
+    {damaged && <g className="sl-chromatin-fragments">{fragmentPaths.slice(0, Math.max(3, pieces)).map(path => <path key={path} d={path} />)}</g>}
   </g>;
 }

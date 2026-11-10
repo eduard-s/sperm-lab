@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { FACTORS, ANATOMY_SOURCES, getFactor, createSimulation, createChallengeSimulation, createDefectSimulation, resolveFactors, getActiveFactors, isSlow, SLOW_SPEED_THRESHOLD, stepSimulation, getMetrics, getTailPoints, findCell } from "../dist/core/index.js";
+import { FACTORS, ANATOMY_SOURCES, DEFECT_CATALOG, MORPHOLOGY_SOURCES, cellMatchesDefect, getDefectCounts, getCellDefects, getFactor, createSimulation, createChallengeSimulation, createDefectSimulation, resolveFactors, getActiveFactors, isSlow, SLOW_SPEED_THRESHOLD, stepSimulation, getMetrics, getTailPoints, findCell } from "../dist/core/index.js";
 
 test("the public catalog contains all 12 distinct sourced factors", () => {
   assert.equal(FACTORS.length, 12);
@@ -264,42 +264,43 @@ test("prepared anatomy samples guarantee visible independent traits for every se
   for (const seed of [0, 1, 42, 90, 4444]) {
     const world = createDefectSimulation({ seed, count: 1 });
     assert.equal(world.fixture, "defect-examples");
-    assert.equal(world.cells.length, 8);
+    assert.equal(world.cells.length, 18);
+    assert.equal(world.teachingPopulation, true);
     assert.equal(getActiveFactors(world).length, 0);
-    assert.equal(world.cells[0].headCount, 2);
-    assert.equal(world.cells[1].tailCount, 2);
-    assert.equal(world.cells[2].midpieceDamage, true);
-    assert.ok(world.cells[3].dnaDamage && world.cells[3].progressive && !world.cells[3].headDefect && !world.cells[3].tailDefect);
-    assert.ok(isSlow(world.cells[4]));
-    assert.ok(world.cells[5].alive && world.cells[5].speed === 0);
-    assert.ok(world.cells[6].speed > 0 && !world.cells[6].progressive);
-    assert.ok(world.cells[7].progressive);
+    for (const defect of DEFECT_CATALOG) {
+      const specimen = world.cells.find(cell => cell.example === defect.id);
+      assert.ok(specimen, `${defect.id} needs a discoverable example`);
+      assert.ok(cellMatchesDefect(specimen, defect.id));
+      assert.ok(getCellDefects(specimen).some(item => item.id === defect.id));
+    }
+    const dnaExample = world.cells.find(cell => cell.example === "dna-fragmentation");
+    assert.ok(dnaExample.dnaDamage && dnaExample.dnaFragmentation >= 3);
+    assert.ok(isSlow(world.cells.find(cell => cell.example === "slow")));
     const metrics = getMetrics(world);
-    assert.equal(metrics.multiHead, 1);
-    assert.equal(metrics.multiTail, 1);
-    assert.equal(metrics.midpieceDamaged, 1);
-    assert.equal(metrics.dnaDamaged, 1);
-    assert.equal(metrics.immotile, 1);
-    assert.equal(metrics.nonprogressive, 1);
+    assert.ok(metrics.multiHead >= 1);
+    assert.ok(metrics.multiTail >= 2);
+    assert.ok(metrics.midpieceDamaged >= 1);
+    assert.ok(metrics.dnaDamaged >= 1);
+    assert.ok(metrics.immotile >= 2);
+    assert.ok(metrics.nonprogressive >= 1);
   }
-  assert.equal(createDefectSimulation({ count: 9 }).cells[8].alive, false);
   assert.equal(SLOW_SPEED_THRESHOLD, .035);
   assert.ok(ANATOMY_SOURCES.some(source => source.url.startsWith("https://www.who.int/")));
 });
 
 test("two tails have distinct finite geometry, with no mutation during a motion step", () => {
-  const world = createDefectSimulation({ count: 9 });
-  const cell = world.cells[1];
+  const world = createDefectSimulation({ count: 20 });
+  const cell = world.cells.find(cell => cell.example === "double-tail");
   const first = getTailPoints(cell, 0, 0), second = getTailPoints(cell, 0, 1);
   assert.notDeepEqual(first, second);
   assert.ok(second.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)));
-  const biology = world.cells.map(cell => [cell.headCount, cell.tailCount, cell.headDefect, cell.tailDefect, cell.midpieceDamage, cell.dnaDamage, cell.alive]);
+  const biology = world.cells.map(cell => [cell.headCount, cell.tailCount, cell.headShape, cell.tailShape, cell.midpieceShape, cell.headDefect, cell.tailDefect, cell.midpieceDamage, cell.dnaDamage, cell.dnaFragmentation, cell.alive]);
   for (let frame = 0; frame < 100; frame++) stepSimulation(world, 1 / 60);
-  assert.deepEqual(world.cells.map(cell => [cell.headCount, cell.tailCount, cell.headDefect, cell.tailDefect, cell.midpieceDamage, cell.dnaDamage, cell.alive]), biology);
+  assert.deepEqual(world.cells.map(cell => [cell.headCount, cell.tailCount, cell.headShape, cell.tailShape, cell.midpieceShape, cell.headDefect, cell.tailDefect, cell.midpieceDamage, cell.dnaDamage, cell.dnaFragmentation, cell.alive]), biology);
 });
 
 test("tail motion keeps its short proximal section straight and attached", () => {
-  const cell = createDefectSimulation({ count: 8 }).cells[7];
+  const cell = createChallengeSimulation("hidden-dna").cells[0];
   const first = getTailPoints(cell, 0);
   const later = getTailPoints(cell, .13);
   assert.deepEqual(first.slice(0, 3), later.slice(0, 3));
@@ -308,5 +309,106 @@ test("tail motion keeps its short proximal section straight and attached", () =>
   for (let index = 1; index < 3; index++) {
     const cross = (first[index].x - first[0].x) * Math.sin(cell.angle) - (first[index].y - first[0].y) * Math.cos(cell.angle);
     assert.ok(Math.abs(cross) < 1e-10);
+  }
+});
+
+test("the common teaching catalog has distinct sourced categories without a complete-classification claim", () => {
+  assert.equal(DEFECT_CATALOG.length, 18);
+  assert.equal(new Set(DEFECT_CATALOG.map(defect => defect.id)).size, 18);
+  assert.ok(MORPHOLOGY_SOURCES.some(source => source.url.startsWith("https://www.who.int/")));
+  for (const defect of DEFECT_CATALOG) {
+    assert.ok(defect.title && defect.description && defect.sources.length > 0);
+    for (const source of defect.sources) assert.equal(new URL(source.url).protocol, "https:");
+  }
+  assert.throws(() => cellMatchesDefect(createSimulation({ count: 1 }).cells[0], "unknown"), RangeError);
+});
+
+test("all 18 categories remain discoverable across every combination of the 12 controls", () => {
+  for (let mask = 0; mask < 2 ** FACTORS.length; mask++) {
+    const factors = Object.fromEntries(FACTORS.map((factor, index) => [factor.id, mask & 1 << index ? 1 : 0]));
+    const world = createSimulation({ seed: mask, count: 48, factors, teachingPopulation: true });
+    assert.ok(world.cells.length >= 18 && world.cells.length <= 160);
+    const counts = getDefectCounts(world);
+    for (const defect of DEFECT_CATALOG) assert.ok(counts[defect.id] > 0, `${defect.id} missing for factor mask ${mask}`);
+    for (const cell of world.cells) {
+      assert.equal(cell.dnaDamage, cell.dnaFragmentation > 0);
+      assert.ok([0, 3, 4, 5, 6].includes(cell.dnaFragmentation));
+      assert.equal(cell.headDefect, cell.headCount > 1 || cell.headShape !== "typical");
+      assert.equal(cell.tailDefect, cell.tailCount !== 1 || cell.tailShape !== "typical");
+      if (cell.tailCount === 0) assert.ok(cell.speed === 0 && cell.beat === 0 && !cell.progressive);
+    }
+  }
+});
+
+test("pinned categories remain available while their other traits respond to the controls", () => {
+  const baseline = createSimulation({ seed: 42, count: 100, teachingPopulation: true });
+  const affected = createSimulation({ seed: 42, count: 100, teachingPopulation: true, factors: { smoking: .8, heat: .6 } });
+  assert.ok(affected.cells.length < baseline.cells.length);
+  for (const defect of DEFECT_CATALOG) {
+    assert.ok(cellMatchesDefect(baseline.cells.find(cell => cell.example === defect.id), defect.id));
+    assert.ok(cellMatchesDefect(affected.cells.find(cell => cell.example === defect.id), defect.id));
+  }
+  const responsiveTraits = cell => [cell.dnaDamage, cell.dnaFragmentation, cell.midpieceDamage, cell.speed, cell.progressive];
+  assert.notDeepEqual(affected.cells.slice(0, 18).map(responsiveTraits), baseline.cells.slice(0, 18).map(responsiveTraits));
+  assert.notDeepEqual(affected.cells.slice(20).map(responsiveTraits), baseline.cells.slice(20, affected.cells.length).map(responsiveTraits));
+  assert.equal(createSimulation({ count: 1 }).cells.length, 1);
+  assert.equal(createSimulation({ count: 1, teachingPopulation: true }).cells.length, 18);
+  assert.equal(createSimulation().teachingPopulation, false);
+});
+
+test("factor effects remain visible at the minimum teaching count", () => {
+  const first = createSimulation({ seed: 42, count: 48, teachingPopulation: true, factors: { androgens: 1 } });
+  const second = createSimulation({ seed: 42, count: 48, teachingPopulation: true, factors: { androgens: 1, heat: 1, smoking: 1 } });
+  assert.equal(first.cells.length, 18);
+  assert.equal(second.cells.length, 18);
+  assert.ok(getMetrics(second).dnaDamaged > getMetrics(first).dnaDamaged);
+  assert.ok(getMetrics(second).motile < getMetrics(first).motile);
+  assert.ok(second.cells.find(cell => cell.example === "dna-fragmentation").dnaFragmentation > first.cells.find(cell => cell.example === "dna-fragmentation").dnaFragmentation);
+  for (const world of [first, second]) for (const count of Object.values(getDefectCounts(world))) assert.ok(count > 0);
+});
+
+test("named developmental forms do not receive specific lifestyle causes", () => {
+  const baseline = createSimulation({ seed: 16, count: 160 });
+  for (const factor of FACTORS) {
+    const later = createSimulation({ seed: 16, count: 160, factors: { [factor.id]: 1 } });
+    for (const cell of later.cells) {
+      const before = baseline.cells[cell.id];
+      if (!before) continue;
+      if (["small", "large", "tapered", "round"].includes(before.headShape)) assert.equal(cell.headShape, before.headShape);
+      if (["bent", "coiled", "short", "absent"].includes(before.tailShape)) assert.equal(cell.tailShape, before.tailShape);
+      assert.equal(cell.midpieceShape, before.midpieceShape);
+    }
+  }
+});
+
+test("multiple, short, coiled, and absent tails have distinct bounded geometry", () => {
+  const world = createDefectSimulation({ count: 18 });
+  const find = id => world.cells.find(cell => cell.example === id);
+  const triple = find("triple-tail");
+  const branches = [0, 1, 2].map(index => getTailPoints(triple, .1, index));
+  assert.notDeepEqual(branches[0], branches[1]);
+  assert.notDeepEqual(branches[1], branches[2]);
+  assert.notDeepEqual(branches[0], branches[2]);
+  assert.deepEqual(getTailPoints(find("absent-tail"), 0), []);
+  const reach = cell => Math.max(...getTailPoints(cell, 0).map(point => Math.hypot(point.x - cell.x, point.y - cell.y)));
+  assert.ok(reach(find("short-tail")) < reach(find("dna-fragmentation")) / 2);
+  assert.ok(reach(find("coiled-tail")) < reach(find("dna-fragmentation")) / 2);
+  for (const cell of world.cells) for (let index = 0; index < cell.tailCount; index++) {
+    for (const point of getTailPoints(cell, .2, index)) {
+      assert.ok(Number.isFinite(point.x) && Number.isFinite(point.y));
+      assert.ok(Math.hypot(point.x - cell.x, point.y - cell.y) < .22);
+    }
+  }
+});
+
+test("legacy challenge fixtures keep fragmentation and absent-tail invariants consistent", () => {
+  for (const kind of ["hidden-dna", "immotile-alive", "circling"]) {
+    const world = createChallengeSimulation(kind, { count: 160 });
+    for (const cell of world.cells) {
+      assert.equal(cell.dnaDamage, cell.dnaFragmentation > 0);
+      assert.equal(cell.headDefect, cell.headCount > 1 || cell.headShape !== "typical");
+      assert.equal(cell.tailDefect, cell.tailCount !== 1 || cell.tailShape !== "typical");
+      if (cell.tailCount === 0) assert.ok(cell.speed === 0 && cell.beat === 0 && !cell.progressive);
+    }
   }
 });

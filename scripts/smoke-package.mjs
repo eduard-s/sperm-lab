@@ -35,7 +35,7 @@ try {
     import assert from 'node:assert/strict';
     import { readFileSync } from 'node:fs';
     import { fileURLToPath } from 'node:url';
-    import { FACTORS, createSimulation, stepSimulation, getMetrics, getTailPoints, createChallengeSimulation, createDefectSimulation } from 'sperm-lab/core';
+    import { FACTORS, DEFECT_CATALOG, createSimulation, stepSimulation, getMetrics, getTailPoints, getDefectCounts, createChallengeSimulation, createDefectSimulation } from 'sperm-lab/core';
     assert.equal(FACTORS.length, 12);
     const world = createSimulation({ seed: 42, count: 32, factors: { heat: .6, smoking: .4 }, progress: 1 });
     stepSimulation(world, 1 / 60);
@@ -43,10 +43,14 @@ try {
     assert.equal(world.requestedCount, 32);
     assert.equal(getMetrics(world).total, world.cells.length);
     assert(world.cells.every(cell => Number.isFinite(cell.x) && Number.isFinite(cell.y)));
-    assert(getTailPoints(world.cells[0], world.time).length > 2);
+    assert(getTailPoints(world.cells.find(cell => cell.tailCount > 0), world.time).length > 2);
     for (const kind of ['hidden-dna', 'immotile-alive', 'circling']) assert(createChallengeSimulation(kind).cells.length > 0);
     const defects = getMetrics(createDefectSimulation({ count: 24 }));
     for (const trait of ['multiHead', 'multiTail', 'midpieceDamaged', 'dnaDamaged', 'slow', 'immotile', 'nonprogressive']) assert(defects[trait] > 0, trait);
+    const teaching = createSimulation({ count: 18, teachingPopulation: true, factors: { heat: 1, smoking: 1, androgens: 1 } });
+    const catalogCounts = getDefectCounts(teaching);
+    assert.equal(DEFECT_CATALOG.length, 18);
+    for (const defect of DEFECT_CATALOG) assert(catalogCounts[defect.id] > 0, defect.id);
     assert(readFileSync(fileURLToPath(import.meta.resolve('sperm-lab/styles.css')), 'utf8').includes('.sl-lab'));
     process.stdout.write(JSON.stringify({ factors: FACTORS.length, cells: world.cells.length }));
   `));
@@ -67,7 +71,7 @@ try {
       import { renderToString } from 'react-dom/server';
       import { SpermLab } from 'sperm-lab';
       import { SpermLab as Alias } from 'sperm-lab/react';
-      import { FACTORS } from 'sperm-lab/core';
+      import { FACTORS, DEFECT_CATALOG } from 'sperm-lab/core';
       assert.equal(SpermLab, Alias);
       const html = renderToString(React.createElement(SpermLab, { seed: 42, count: 24 }));
       for (const factor of FACTORS) assert(html.includes(factor.title.replaceAll('&', '&amp;')), factor.title);
@@ -75,6 +79,8 @@ try {
       for (const factor of FACTORS) assert(html.includes('data-factor="' + factor.id + '"'), factor.id);
       assert.equal((html.match(/<canvas\\b/g) ?? []).length, 1);
       assert(!html.includes('<select'));
+      const catalog = Object.fromEntries([...html.matchAll(/data-defect="([^"]+)" data-count="(\\d+)"/g)].map(match => [match[1], Number(match[2])]));
+      for (const defect of DEFECT_CATALOG) assert(catalog[defect.id] > 0, defect.id);
       const configured = renderToString(React.createElement(SpermLab, { initialFactors: { smoking: .5, heat: .3 } }));
       assert(!configured.includes('All factors start at zero.'));
       process.stdout.write(html);

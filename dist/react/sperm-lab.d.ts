@@ -8,9 +8,10 @@ export type SpermLabProps = {
     count?: number;
     initialFactors?: Factors;
     initialFactor?: FactorId;
+    teachingPopulation?: boolean;
     className?: string;
     style?: CSSProperties;
     onMetrics?: (metrics: SpermLabMetrics) => void;
 };
-export declare function SpermLab({ seed, count, initialFactors, initialFactor, className, style, onMetrics }?: SpermLabProps): import("react").JSX.Element;
+export declare function SpermLab({ seed, count, initialFactors, initialFactor, teachingPopulation, className, style, onMetrics }?: SpermLabProps): import("react").JSX.Element;
 export {};

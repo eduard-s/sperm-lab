@@ -24,10 +24,19 @@ The package needs no backend or account.
 
 Keep movement, vitality, shape, and DNA damage separate.
 Show head, tail, and midpiece differences explicitly.
-Include examples with two heads and two tails.
+Include all 18 selected morphology, injury, and movement examples.
+Show small, large, tapered, and round heads.
+Show bent, coiled, short, absent, double, and triple tails.
+
 Show the simulation as a teaching example, without clinical predictions.
 Explain uncertain evidence near the factor controls.
 Keep source links near each factor.
+
+Keep the teaching population on by default.
+Keep a matching example for every catalog category.
+Let the factor controls act on the sample through illustrative channels.
+Describe the catalog as selected teaching examples rather than clinical prevalence.
+Use red fragmentation marks inside the compact nucleus for model DNA damage.
 
 Combine factor controls without a dropdown or a baseline comparison.
 Use a prepared morphology sample to teach separate cell traits.

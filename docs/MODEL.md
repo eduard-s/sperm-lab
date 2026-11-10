@@ -18,8 +18,10 @@ Movement describes whether a cell moves.
 Progressive movement describes forward travel.
 Vitality describes whether a cell is alive.
 Shape describes the head and tail outline in this simplified drawing.
-Examples include two heads, two tails, head differences, and tail differences.
+Examples include small, large, tapered, and round heads, plus double heads.
+Tail examples include bent, coiled, short, absent, double, and triple tails.
 
+Bent and thick midpiece outlines form separate structural examples.
 Midpiece injury is a separate trait.
 It does not necessarily change the midpiece outline.
 The `typical` count covers head and tail outlines only.
@@ -55,13 +57,20 @@ It does not estimate the independent risk of each factor or their combined clini
 The model bounds those rules to keep the sample stable.
 A beneficial exercise setting does not cancel chemical exposure or repair existing damage.
 
-Multiple heads and multiple tails use independent morphology examples.
-The model does not attribute those forms to a specific lifestyle factor.
-A prepared morphology sample guarantees examples for inspection.
-Those examples do not show their frequency in people.
+The teaching catalog contains 18 selected morphology, injury, and movement examples.
+The React component keeps a matching example for each category by default.
+The raw core includes them only when `teachingPopulation` is `true`.
+A teaching population keeps at least 18 cells.
+Factor controls still affect the sample through illustrative channels.
+The required catalog trait stays available while other traits can change.
+
+The catalog does not contain every clinical phenotype.
+Its structural examples do not establish a lifestyle cause.
+The examples do not show their frequency in people.
 
 WHO guidance describes the assessment of sperm heads, midpieces, and tails, including multiple heads and tails.
 [Read the WHO laboratory manual](https://www.who.int/publications/i/item/9789240030787).
+[Read the study of head, midpiece, and tail defect categories](https://doi.org/10.1093/humrep/dev251).
 The lab uses original schematic drawings.
 It does not copy the manual's figures or present the drawings as diagnostic images.
 
@@ -109,11 +118,14 @@ A human sperm study reports typical head lengths of 4–6 µm, midpiece lengths 
 
 Those dimensions guide the original cell outlines.
 The display does not use a calibrated microscope scale.
-Heads remain compact ovals, with a short, thin midpiece and a much longer tail.
+Typical heads remain compact ovals, with a short, thin midpiece and a much longer tail.
+The catalog changes the outlines only for the selected structural examples.
 The anatomy inspector enlarges parts for explanation.
 
 The head drawing contains a compact nucleus rather than a loose DNA helix.
-DNA colors and fragmentation marks form a symbolic teaching overlay.
+Red DNA fragments appear inside the compact nucleus.
+The red fragments form a symbolic teaching overlay.
+Their piece count does not measure molecular breaks or laboratory assay results.
 They do not show molecular detail or resolved DNA breaks in ordinary microscopy.
 The overlay does not replace a laboratory assay for DNA damage.
 

@@ -55,7 +55,7 @@ All 12 factor sliders remain visible.
 Each slider has its own value and explanation.
 The Development point slider changes an illustrative stage, without real days.
 The sample can show forward movement, slow movement, circles, and immobility.
-Cell traits include head differences, two heads, tail differences, two tails, and midpiece damage.
+Cell traits include head shapes, multiple tails, midpiece differences, and red DNA fragmentation marks.
 
 The lab separates movement, vitality, shape, and DNA damage.
 An immotile sperm can be alive.
@@ -81,6 +81,27 @@ Typical shape and forward movement do not prove that DNA is intact.
 The factor explanations include sources and evidence limits.
 Regular exercise does not share a fixed damage rule with high-volume endurance exercise.
 
+## Common defect examples
+
+The teaching catalog includes 18 selected morphology, injury, and movement examples.
+It is not a complete list of clinical phenotypes.
+It does not show how often each trait occurs in people.
+
+| Region | Examples |
+| --- | --- |
+| Head | Small, large, tapered, round, and double heads. |
+| Tail | Bent, coiled, short, absent, double, and triple tails. |
+| Midpiece | Bent or thick outlines, plus a separate injury marker. |
+| DNA | Red fragments inside a compact nucleus. |
+| Movement | Slow, immotile, and nonprogressive cells. |
+
+The React component includes the teaching population by default.
+It keeps at least 18 cells so each category has a matching example.
+Factor controls still affect the sample through illustrative channels.
+Each cell can have more than one trait.
+The catalog does not establish a lifestyle cause for a particular defect.
+Use `teachingPopulation={false}` for a synthetic population without guaranteed catalog coverage.
+
 ## Model limits
 
 All cells, counts, factor strengths, and development stages are fictional teaching examples.
@@ -92,10 +113,10 @@ Motion steps do not change the shape or DNA of existing cells.
 Combined controls use authored rules for possible pathways.
 Those rules do not measure combined clinical risk.
 
-Multiple heads and multiple tails are independent morphology examples.
+Structural forms in the teaching catalog remain independent of lifestyle settings.
 The model does not assign those forms to a particular lifestyle factor.
-The prepared morphology sample guarantees visible examples for inspection.
-It does not show the frequency of those forms in people.
+Red DNA fragmentation is a symbolic overlay inside the nucleus.
+It does not depict molecular breaks visible through ordinary microscopy.
 
 Uncertain factors use possible-pathway examples.
 The example is not a measured effect size or a prediction.

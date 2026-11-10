@@ -1,5 +1,8 @@
 import { FACTORS, getFactor } from "./factors.js";
-import type { ChallengeKind, Factor, FactorId, FactorSettings, Flow, Metrics, Point, ResolvedFactors, Simulation, SimulationOptions, SpermCell } from "./types.js";
+import { DEFECT_CATALOG } from "./defects.js";
+import { SLOW_SPEED_THRESHOLD } from "./constants.js";
+import type { ChallengeKind, Factor, FactorId, FactorSettings, Flow, HeadShape, Metrics, Point, ResolvedFactors, Simulation, SimulationOptions, SpermCell, TailShape } from "./types.js";
+export { SLOW_SPEED_THRESHOLD } from "./constants.js";
 
 type Profile = { production: number; motility: number; vitality: number; shape: number; dna: number; speed: number };
 
@@ -21,9 +24,6 @@ const profiles: Record<FactorId, Profile> = {
 
 function finite(value: number | undefined, fallback: number) { return typeof value === "number" && Number.isFinite(value) ? value : fallback; }
 function clamp(value: number, min = 0, max = 1) { return Math.min(max, Math.max(min, value)); }
-
-/** A relative animation threshold, without clinical units. */
-export const SLOW_SPEED_THRESHOLD = .035;
 
 /** Resolve all twelve independent strengths. Unknown keys are errors; invalid numeric values become zero. */
 export function resolveFactors(settings: FactorSettings = {}): ResolvedFactors {
@@ -70,14 +70,16 @@ function randomGenerator(seed: number) {
 /** Create a new fictional cohort. Progress is not elapsed biological time. */
 export function createSimulation(options: SimulationOptions = {}): Simulation {
   const seed = Math.trunc(finite(options.seed, 42)) >>> 0;
-  const requestedCount = Math.round(clamp(finite(options.count, 48), 1, 160));
+  const teachingPopulation = options.teachingPopulation === true;
+  const minimumCount = teachingPopulation ? DEFECT_CATALOG.length : 1;
+  const requestedCount = Math.round(clamp(finite(options.count, 48), minimumCount, 160));
   const progress = clamp(finite(options.progress, 1));
   const independent = options.factors !== undefined;
   const intensity = independent ? 1 : clamp(finite(options.intensity, 1));
   if (!independent && options.factor !== undefined) getFactor(options.factor);
   const factors = resolveFactors(independent ? options.factors : options.factor ? { [options.factor]: intensity } : {});
   const channels = composeChannels(factors, progress);
-  const count = Math.round(clamp(requestedCount * channels.production, 1, 160));
+  const count = Math.round(clamp(requestedCount * channels.production, minimumCount, 160));
   const random = randomGenerator(seed);
   const cells: SpermCell[] = [];
   for (let id = 0; id < count; id++) {
@@ -93,21 +95,32 @@ export function createSimulation(options: SimulationOptions = {}): Simulation {
     const speedDraw = random();
     const beatDraw = random();
     const headDraw = random(), tailDraw = random(), midpieceDraw = random();
+    const headShapeDraw = random(), tailShapeDraw = random(), midpieceShapeDraw = random(), fragmentDraw = random();
     const alive = vitalityDraw < .95;
-    const motile = alive && movementDraw < channels.motility;
     const headCount = headDraw < .035 ? 2 : 1;
-    const tailCount = tailDraw < .045 ? 2 : 1;
-    const headDefect = headCount === 2 || shapeDraw < channels.shape * .52;
-    const tailDefect = tailCount === 2 || (shapeDraw >= channels.shape * .52 && shapeDraw < channels.shape);
+    // Named developmental forms are sampled independently of lifestyle settings.
+    let headShape: HeadShape = headShapeDraw < .03 ? "small" : headShapeDraw < .06 ? "large" : headShapeDraw < .09 ? "tapered" : headShapeDraw < .12 ? "round" : "typical";
+    let tailShape: TailShape = tailShapeDraw < .025 ? "absent" : tailShapeDraw < .055 ? "short" : tailShapeDraw < .085 ? "coiled" : tailShapeDraw < .12 ? "bent" : "typical";
+    if (headShape === "typical" && shapeDraw < channels.shape * .52) headShape = "irregular";
+    if (tailShape === "typical" && shapeDraw >= channels.shape * .52 && shapeDraw < channels.shape) tailShape = "irregular";
+    const midpieceShape = midpieceShapeDraw < .04 ? "bent" : midpieceShapeDraw < .08 ? "thick" : "typical";
+    const tailCount = tailShape === "absent" ? 0 : tailDraw < .01 ? 3 : tailDraw < .045 ? 2 : 1;
+    const motile = alive && tailCount > 0 && movementDraw < channels.motility;
+    const headDefect = headCount === 2 || headShape !== "typical";
+    const tailDefect = tailCount !== 1 || tailShape !== "typical";
     const midpieceDamage = midpieceDraw < channels.midpiece;
     const morphology = headDefect ? "head" : tailDefect ? "tail" : "typical";
+    const dnaDamage = dnaDraw < channels.dna;
+    const dnaFragmentation = dnaDamage ? (3 + Math.floor(fragmentDraw * 4)) as 3 | 4 | 5 | 6 : 0;
     // Shape alone does not determine movement. The separate draw preserves that distinction.
     const speed = motile ? (.02 + speedDraw * .05) * channels.speed : 0;
     cells.push({ id, x, y, angle, phase, alive, speed, beat: motile ? 4 + beatDraw * 3 : 0,
-      headCount, tailCount, headDefect, tailDefect, midpieceDamage, morphology, dnaDamage: dnaDraw < channels.dna,
+      headCount, tailCount, headShape, tailShape, midpieceShape, headDefect, tailDefect, midpieceDamage, morphology, dnaDamage, dnaFragmentation,
       progressive: motile && progressDraw < (tailDefect ? .33 : .81), trail: [] });
   }
-  return { cells, time: 0, seed, factors, factor: independent ? undefined : options.factor, progress, intensity, requestedCount, model: "fictional-teaching-sample", trailClock: 0 };
+  const world: Simulation = { cells, time: 0, seed, factors, teachingPopulation, factor: independent ? undefined : options.factor, progress, intensity, requestedCount, model: "fictional-teaching-sample", trailClock: 0 };
+  if (teachingPopulation) prepareTeachingExamples(world, channels);
+  return world;
 }
 
 /** Make an explicitly prepared sample for a discovery challenge. Cell zero is the target. */
@@ -118,16 +131,21 @@ export function createChallengeSimulation(kind: ChallengeKind, options: Pick<Sim
   world.fixture = kind;
   target.alive = true;
   target.headCount = target.tailCount = 1;
+  target.headShape = target.tailShape = target.midpieceShape = "typical";
   target.headDefect = target.tailDefect = target.midpieceDamage = false;
   target.morphology = "typical";
   target.dnaDamage = kind === "hidden-dna";
+  target.dnaFragmentation = kind === "hidden-dna" ? 5 : 0;
   target.speed = kind === "immotile-alive" ? 0 : .052;
   target.beat = kind === "immotile-alive" ? 0 : 5.5;
   target.progressive = kind === "hidden-dna";
   // Other cells cannot satisfy the selected challenge. The prepared target is unambiguous.
   for (const cell of world.cells.slice(1)) {
-    if (kind === "hidden-dna") cell.dnaDamage = false;
-    if (kind === "immotile-alive" && cell.alive && cell.speed === 0) { cell.speed = .045; cell.beat = 5; cell.progressive = true; }
+    if (kind === "hidden-dna") { cell.dnaDamage = false; cell.dnaFragmentation = 0; }
+    if (kind === "immotile-alive" && cell.alive && cell.speed === 0) {
+      if (cell.tailCount === 0) { cell.tailCount = 1; cell.tailShape = "typical"; cell.tailDefect = false; cell.morphology = cell.headDefect ? "head" : "typical"; }
+      cell.speed = .045; cell.beat = 5; cell.progressive = true;
+    }
     if (kind === "circling" && cell.speed > 0) cell.progressive = true;
   }
   return world;
@@ -135,28 +153,48 @@ export function createChallengeSimulation(kind: ChallengeKind, options: Pick<Sim
 
 /** Make prepared anatomy examples without assigning them to a lifestyle exposure. */
 export function createDefectSimulation(options: Pick<SimulationOptions, "seed" | "count"> = {}): Simulation {
-  const world = createSimulation({ ...options, count: Math.max(8, finite(options.count, 48)) });
+  const world = createSimulation({ ...options, teachingPopulation: true });
   world.fixture = "defect-examples";
-  for (const cell of world.cells.slice(0, 9)) {
-    cell.alive = true;
-    cell.headCount = cell.tailCount = 1;
-    cell.headDefect = cell.tailDefect = cell.midpieceDamage = cell.dnaDamage = false;
-    cell.morphology = "typical";
-    cell.speed = .052;
-    cell.beat = 5.5;
-    cell.progressive = true;
-  }
-  const [heads, tails, midpiece, dna, slow, still, circling, forward, nonviable] = world.cells;
-  heads.headCount = 2; heads.headDefect = true; heads.morphology = "head";
-  tails.tailCount = 2; tails.tailDefect = true; tails.morphology = "tail";
-  midpiece.midpieceDamage = true; midpiece.speed = .023;
-  dna.dnaDamage = true;
-  slow.speed = .018;
-  still.speed = still.beat = 0; still.progressive = false;
-  circling.progressive = false;
-  forward.speed = .066;
-  if (nonviable) { nonviable.alive = false; nonviable.speed = nonviable.beat = 0; nonviable.progressive = false; }
   return world;
+}
+
+function prepareTeachingExamples(world: Simulation, channels: Channels): void {
+  for (const [index, cell] of world.cells.slice(0, DEFECT_CATALOG.length).entries()) {
+    // Pin only the named lesson trait. Other channels remain responsive to the controls.
+    const example = DEFECT_CATALOG[index].id;
+    cell.example = example;
+    switch (example) {
+      case "double-head": cell.headCount = 2; break;
+      case "small-head": cell.headShape = "small"; break;
+      case "large-head": cell.headShape = "large"; break;
+      case "tapered-head": cell.headShape = "tapered"; break;
+      case "round-head": cell.headShape = "round"; break;
+      case "double-tail": cell.tailCount = 2; if (cell.tailShape === "absent") cell.tailShape = "typical"; break;
+      case "triple-tail": cell.tailCount = 3; if (cell.tailShape === "absent") cell.tailShape = "typical"; break;
+      case "bent-tail": cell.tailShape = "bent"; if (cell.tailCount === 0) cell.tailCount = 1; break;
+      case "coiled-tail": cell.tailShape = "coiled"; if (cell.tailCount === 0) cell.tailCount = 1; break;
+      case "short-tail": cell.tailShape = "short"; if (cell.tailCount === 0) cell.tailCount = 1; break;
+      case "absent-tail": cell.tailShape = "absent"; cell.tailCount = 0; cell.speed = cell.beat = 0; cell.progressive = false; break;
+      case "bent-midpiece": cell.midpieceShape = "bent"; break;
+      case "thick-midpiece": cell.midpieceShape = "thick"; break;
+      case "midpiece-damage": cell.midpieceDamage = true; break;
+      case "dna-fragmentation": cell.dnaDamage = true; cell.dnaFragmentation = clamp(3 + Math.floor(channels.dna * 6), 3, 6) as 3 | 4 | 5 | 6; break;
+      case "slow":
+        cell.alive = true;
+        if (cell.tailCount === 0) { cell.tailCount = 1; cell.tailShape = "typical"; }
+        cell.speed = .018 * channels.speed; cell.beat = 5.5;
+        break;
+      case "immotile": cell.alive = true; cell.speed = cell.beat = 0; cell.progressive = false; break;
+      case "nonprogressive":
+        cell.alive = true;
+        if (cell.tailCount === 0) { cell.tailCount = 1; cell.tailShape = "typical"; }
+        cell.speed = .052 * channels.speed; cell.beat = 5.5; cell.progressive = false;
+        break;
+    }
+    cell.headDefect = cell.headCount > 1 || cell.headShape !== "typical";
+    cell.tailDefect = cell.tailCount !== 1 || cell.tailShape !== "typical";
+    cell.morphology = cell.headDefect ? "head" : cell.tailDefect ? "tail" : "typical";
+  }
 }
 
 /** Advance physical motion only. Sperm biology remains fixed within a cohort. */
@@ -218,19 +256,28 @@ export function isSlow(cell: SpermCell): boolean {
 /** Return schematic tail geometry in the same normalized plane as the cell. */
 export function getTailPoints(cell: SpermCell, time: number, tailIndex = 0): Point[] {
   const points: Point[] = [];
+  if (cell.tailCount === 0 || cell.tailShape === "absent") return points;
   const t = finite(time, 0);
   const indexOffset = Math.round(clamp(finite(tailIndex, 0), 0, (cell.tailCount ?? 1) - 1));
-  const separation = cell.tailCount === 2 ? indexOffset === 0 ? -.005 : .005 : 0;
+  const separation = (indexOffset - ((cell.tailCount ?? 1) - 1) / 2) * .009;
   const cos = Math.cos(cell.angle), sin = Math.sin(cell.angle);
   for (let index = 0; index <= 20; index++) {
     const fraction = index / 20;
-    const along = -.009 - .18 * fraction;
+    const lengthScale = cell.tailShape === "short" ? .32 : 1;
+    let along = -.009 - .18 * fraction * lengthScale;
     // The short proximal section stays nearly straight. Bending grows smoothly along the flagellum.
     const flexible = clamp((fraction - .1) / .9);
     const envelope = flexible * flexible * (3 - 2 * flexible);
-    const wave = cell.beat > 0 ? Math.sin(t * cell.beat * 2 * Math.PI - flexible * Math.PI * 3 + cell.phase + indexOffset * Math.PI) * .009 * envelope : .002 * envelope;
-    const bend = cell.tailDefect ? .023 * Math.sin(flexible * Math.PI) * envelope : 0;
-    const across = wave + bend + separation * (1 + fraction);
+    const phase = t * cell.beat * 2 * Math.PI - flexible * Math.PI * 3 * lengthScale + cell.phase + indexOffset * Math.PI * 2 / (cell.tailCount ?? 1);
+    let wave = cell.beat > 0 ? Math.sin(phase) * .009 * envelope : .002 * envelope;
+    let bend = cell.tailShape === "bent" ? .065 * clamp((flexible - .35) / .65) : cell.tailDefect ? .023 * Math.sin(flexible * Math.PI) * envelope : 0;
+    if (cell.tailShape === "coiled" && fraction > .12) {
+      const sweep = (fraction - .12) / .88 * Math.PI * 2.2;
+      along = -.0306 - .026 * Math.sin(sweep);
+      bend = .026 * (1 - Math.cos(sweep));
+      wave *= .2;
+    }
+    const across = wave + bend + separation * (1 + fraction * 2.8) + (cell.midpieceShape === "bent" ? .006 : 0);
     points.push({ x: cell.x + along * cos - across * sin, y: cell.y + along * sin + across * cos });
   }
   return points;

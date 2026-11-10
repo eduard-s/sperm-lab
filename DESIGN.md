@@ -17,13 +17,21 @@ Use container queries for the component layout.
 Permit native vertical touch scrolling and pinch zoom over the canvas.
 
 Use flexible tails and short trails to explain motion.
+Draw the selected head, tail, and midpiece shapes explicitly.
 Draw separate heads and tails when the cell has more than one.
+Draw no tail when the cell has an absent-tail trait.
+
 Show midpiece damage separately from head, tail, and DNA differences.
 Mouse currents change physical movement only.
 Factor controls prepare a new synthetic population with the selected combination.
-Use a DNA overlay to reveal a separate biological property.
+Use `--sl-damage: #b82735` for DNA damage and defect accents.
+
+Keep red DNA fragments inside a compact nucleus.
+Keep typical heads compact, typical midpieces short and thin, and tails long and tapered.
+Use no external cross marks, loose DNA helices, or banded midpiece barrels.
 
 Start paused for reduced-motion visitors.
 Stop automatic motion in hidden tabs and outside the viewport.
 Cap pixel density and motion time steps.
-Keep discovery instructions and results available as text.
+Keep all catalog categories and their explanations available as text.
+Identify the catalog as selected teaching examples rather than a complete clinical classification.

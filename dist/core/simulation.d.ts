@@ -1,6 +1,5 @@
 import type { ChallengeKind, Factor, FactorSettings, Flow, Metrics, Point, ResolvedFactors, Simulation, SimulationOptions, SpermCell } from "./types.js";
-/** A relative animation threshold, without clinical units. */
-export declare const SLOW_SPEED_THRESHOLD = 0.035;
+export { SLOW_SPEED_THRESHOLD } from "./constants.js";
 /** Resolve all twelve independent strengths. Unknown keys are errors; invalid numeric values become zero. */
 export declare function resolveFactors(settings?: FactorSettings): ResolvedFactors;
 export declare function getActiveFactors(world: Simulation): Factor[];

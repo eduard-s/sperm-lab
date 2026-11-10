@@ -5,6 +5,7 @@ export type SpermPalette = {
     clay: string;
     accent: string;
     paper?: string;
+    damage?: string;
 };
 export type SpermDisplay = {
     trails: boolean;

@@ -1,6 +1,6 @@
 {
   "name": "sperm-lab",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "An interactive sperm education lab with 12 factors, a headless TypeScript simulation, and an embeddable React component.",
   "type": "module",
   "license": "MIT",
