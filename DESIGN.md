@@ -9,7 +9,10 @@ Use one large sample with 12 visible, independent factor sliders.
 Keep all sliders in the document flow.
 Use native controls with visible focus and 44-pixel targets.
 Use thin rules and plain sections.
-Keep the anatomy diagram near the selected cell information.
+
+Keep live defects large enough to distinguish in the sample.
+Use a nonmodal detail popup anchored to the selected cell.
+Keep the enlarged anatomy view optional.
 Use normal document flow without pinned panels or inner scroll containers.
 
 On narrow embeds, put the controls below the sample.
@@ -35,3 +38,15 @@ Stop automatic motion in hidden tabs and outside the viewport.
 Cap pixel density and motion time steps.
 Keep all catalog categories and their explanations available as text.
 Identify the catalog as selected teaching examples rather than a complete clinical classification.
+
+## Cell details
+
+Keep the popup near its cell as the cell moves.
+Keep the popup inside the sample area when possible.
+Show movement, vitality, head, tail, midpiece, and DNA traits.
+Use the same red damage color as the live cell.
+Keep sample controls available while the popup is open.
+
+Show Concentration with a number and the unit `cells / model field`.
+Keep the count near the live sample.
+Use synthetic density without clinical thresholds.

@@ -9,6 +9,8 @@ product
 Help ordinary visitors understand sperm movement, anatomy, and DNA.
 Use one live microscope sample with native mouse interaction.
 Keep the first useful action visible without a tutorial.
+Show defects directly in the live sample.
+Open a moving detail popup when the visitor selects a cell.
 
 The lab includes 12 independent factor sliders.
 All sliders remain visible and act on the same synthetic population.
@@ -41,6 +43,18 @@ Use red fragmentation marks inside the compact nucleus for model DNA damage.
 Combine factor controls without a dropdown or a baseline comparison.
 Use a prepared morphology sample to teach separate cell traits.
 Do not assign one unusual form to one lifestyle factor.
+
+## Live inspection
+
+Keep the selected cell and its popup visible during motion.
+Show all cell traits in the popup.
+Keep the full anatomy view optional.
+Support selection through a visible head, midpiece, or tail.
+Preserve keyboard inspection and popup dismissal.
+
+Show Concentration as the current count in cells per model field.
+Update that count with the current synthetic population.
+Keep clinical units and diagnostic thresholds out of the readout.
 
 ## Release
 

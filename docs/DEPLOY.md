@@ -60,7 +60,7 @@ The demo does not need a backend, database, or server function.
 Install a fixed public package version in `me-landing`.
 
 ```sh
-npm install --save-exact sperm-lab@0.3.0
+npm install --save-exact sperm-lab@0.4.0
 ```
 
 Use the shared experiment page at `/sperm-lab/`.

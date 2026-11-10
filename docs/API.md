@@ -68,6 +68,29 @@ The component respects reduced-motion preferences.
 It stops automatic motion when its document is hidden or the component leaves the viewport.
 Use the component controls to pause or resume motion.
 
+## Live inspection and concentration
+
+The component draws defects directly in the live sample.
+Select a visible head, midpiece, or tail to inspect its cell.
+A nonmodal detail popup tracks the selected cell during motion.
+The popup shows movement, vitality, head, tail, midpiece, and DNA traits.
+DNA details obey the DNA overlay control.
+
+Escape, the close button, and an empty-space click dismiss the popup.
+Enter on the focused canvas selects the next cell and opens its details.
+Tab reaches the popup controls.
+Full anatomy dismisses the popup and scrolls to the larger diagram.
+Popup motion obeys pause and reduced-motion preferences.
+
+The Concentration readout uses `Metrics.total` with the unit `cells / model field`.
+It updates after a factor change prepares a new population.
+The readout describes synthetic density without clinical units or reference thresholds.
+`onMetrics` continues to report population changes rather than every motion frame.
+
+The component uses internal rendered geometry for pointer selection.
+The public `findCell` function remains a center-based query in normalized model coordinates.
+The internal renderer helpers do not change the public package entry points.
+
 ## Damage color
 
 The component uses `--sl-damage` for DNA fragmentation and defect accents.
@@ -116,7 +139,7 @@ The model preserves the required catalog trait while other traits can change.
 A cell can match more than one catalog category.
 
 The `progress` option represents an illustrative development stage from 0 to 1.
-The component exposes that stage through its Development point slider.
+The React component uses progress 1 with the current factor settings.
 It does not represent a fixed number of days.
 A zero progress value removes the illustrative factor effects.
 Teaching catalog examples remain available.

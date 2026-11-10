@@ -1,8 +1,8 @@
 "use client";
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useId, useRef, useState } from "react";
-import { FACTORS, ANATOMY_SOURCES, DEFECT_CATALOG, cellMatchesDefect, getDefectCounts, createSimulation, createDefectSimulation, stepSimulation, getMetrics, findCell, isSlow, } from "../core/index.js";
-import { paintSimulation } from "./renderer.js";
+import { FACTORS, ANATOMY_SOURCES, DEFECT_CATALOG, cellMatchesDefect, getDefectCounts, getCellDefects, createSimulation, createDefectSimulation, stepSimulation, getMetrics, isSlow, } from "../core/index.js";
+import { paintSimulation, hitTestCell, getCellAnchor } from "./renderer.js";
 const groups = [
     { title: "Exercise", ids: ["exercise", "endurance", "cycling"], side: "left" },
     { title: "Habits", ids: ["smoking", "alcohol", "sleep", "stress"], side: "left" },
@@ -27,12 +27,13 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
     const [defaults] = useState(() => ({ seed: finite(seed, 42, 0, 0xffffffff), count: Math.round(finite(count, 48, teachingPopulation ? 18 : 8, 120)), factors: resolveFactors(initialFactors, initialFactor), teachingPopulation }));
     const prefix = useId();
     const [factors, setFactors] = useState(defaults.factors);
-    const [progress, setProgress] = useState(1);
     const [paused, setPaused] = useState(false);
     const [slowMotion, setSlowMotion] = useState(false);
     const [trails, setTrails] = useState(true);
     const [dna, setDna] = useState(true);
     const [selectedId, setSelectedId] = useState(null);
+    const [popupOpen, setPopupOpen] = useState(false);
+    const [popupHeight, setPopupHeight] = useState(0);
     const [prepared, setPrepared] = useState(false);
     const [status, setStatus] = useState("");
     const [unavailable, setUnavailable] = useState(false);
@@ -43,10 +44,13 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
     const root = useRef(null);
     const canvas = useRef(null);
     const inspector = useRef(null);
+    const popup = useRef(null);
+    const popupClose = useRef(null);
+    const popupConnector = useRef(null);
     const callback = useRef(onMetrics);
     callback.current = onMetrics;
-    const settings = useRef({ paused, slowMotion, trails, dna, selectedId });
-    settings.current = { paused, slowMotion, trails, dna, selectedId };
+    const settings = useRef({ paused, slowMotion, trails, dna, selectedId, popupOpen });
+    settings.current = { paused, slowMotion, trails, dna, selectedId, popupOpen };
     const actions = useRef({ invalidate: () => { }, release: () => { } });
     const flow = useRef(undefined);
     const pointer = useRef(null);
@@ -73,16 +77,18 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
         setMetrics(counts);
         callback.current?.(counts);
         setDefectCounts(getDefectCounts(next));
-        if (!preserveMotion || !next.cells.some(cell => cell.id === selectedId))
+        if (!preserveMotion || !next.cells.some(cell => cell.id === selectedId)) {
             setSelectedId(null);
+            setPopupOpen(false);
+        }
         actions.current.release();
         actions.current.invalidate();
     }
     useEffect(() => {
-        publish(newWorld(defaults.seed, defaults.count, factors, progress, defaults.teachingPopulation), !resetMotion.current);
+        publish(newWorld(defaults.seed, defaults.count, factors, 1, defaults.teachingPopulation), !resetMotion.current);
         resetMotion.current = false;
         setPrepared(false);
-    }, [defaults, factors, progress]);
+    }, [defaults, factors]);
     useEffect(() => {
         const surface = canvas.current, context = surface.getContext("2d");
         if (!context) {
@@ -115,6 +121,32 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
                 context.lineTo(x + current.dx * 90, y + current.dy * 90);
                 context.stroke();
                 context.restore();
+            }
+            const panel = popup.current;
+            const selectedCell = world.current.cells.find(cell => cell.id === settings.current.selectedId);
+            if (settings.current.popupOpen && panel && selectedCell && width && height) {
+                const anchor = getCellAnchor(selectedCell, width, height);
+                const panelWidth = panel.offsetWidth, panelHeight = panel.offsetHeight, gap = 18, edge = 8;
+                const placeLeft = anchor.x + gap + panelWidth > width - edge;
+                let left = Math.max(edge, Math.min(width - panelWidth - edge, placeLeft ? anchor.x - gap - panelWidth : anchor.x + gap));
+                let top = Math.max(edge, Math.min(height - panelHeight - edge, anchor.y - Math.min(panelHeight * .35, 90)));
+                let placement = placeLeft ? "left" : "right";
+                if (width < 440) {
+                    const below = anchor.y + gap + panelHeight <= height - edge;
+                    left = Math.max(edge, Math.min(width - panelWidth - edge, anchor.x - panelWidth / 2));
+                    top = Math.max(edge, Math.min(height - panelHeight - edge, below ? anchor.y + gap : anchor.y - gap - panelHeight));
+                    placement = below ? "below" : "above";
+                }
+                panel.style.transform = `translate(${left.toFixed(1)}px, ${top.toFixed(1)}px)`;
+                panel.style.visibility = "visible";
+                panel.dataset.placement = placement;
+                const line = popupConnector.current;
+                if (line) {
+                    line.setAttribute("x1", String(anchor.x));
+                    line.setAttribute("y1", String(anchor.y));
+                    line.setAttribute("x2", String(Math.max(left, Math.min(left + panelWidth, anchor.x))));
+                    line.setAttribute("y2", String(Math.max(top + 8, Math.min(top + panelHeight - 8, anchor.y))));
+                }
             }
         }
         function stop() { cancelAnimationFrame(frame); cancelAnimationFrame(idleFrame); frame = idleFrame = last = 0; surface.dataset.running = "false"; }
@@ -225,13 +257,33 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
         };
     }, []);
     useEffect(() => { if (paused)
-        actions.current.release(); actions.current.invalidate(); }, [paused, slowMotion, trails, dna, selectedId, prepared]);
+        actions.current.release(); actions.current.invalidate(); }, [paused, slowMotion, trails, dna, selectedId, prepared, popupOpen, popupHeight]);
+    useEffect(() => {
+        if (!popupOpen || !popup.current)
+            return;
+        const measure = () => setPopupHeight(Math.ceil(popup.current?.offsetHeight ?? 0) + ((canvas.current?.clientWidth ?? 600) < 440 ? 160 : 24));
+        const observer = new ResizeObserver(measure);
+        observer.observe(popup.current);
+        measure();
+        function escape(event) {
+            if (event.key !== "Escape")
+                return;
+            event.preventDefault();
+            const restoreFocus = popup.current?.contains(document.activeElement);
+            setPopupOpen(false);
+            if (restoreFocus)
+                canvas.current?.focus({ preventScroll: true });
+        }
+        window.addEventListener("keydown", escape);
+        return () => { observer.disconnect(); window.removeEventListener("keydown", escape); };
+    }, [popupOpen]);
     function changeFactor(id, value) {
         setFactors(previous => ({ ...previous, [id]: value }));
         setStatus("The combined settings prepare a new illustrated cohort.");
     }
-    function choose(id) {
+    function choose(id, openPopup = false) {
         setSelectedId(id);
+        setPopupOpen(openPopup);
         const cell = world.current?.cells.find(item => item.id === id);
         if (cell)
             setStatus(`Cell ${id + 1}. ${movementLabel(cell)}. ${traitLabels(cell).join(". ")}.`);
@@ -241,7 +293,7 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
         if (!cells?.length)
             return;
         const index = cells.findIndex(cell => cell.id === selectedId);
-        choose(cells[(index + 1) % cells.length].id);
+        choose(cells[(index + 1) % cells.length].id, true);
     }
     function inspectDefect(id) {
         const cells = world.current?.cells.filter(cell => cellMatchesDefect(cell, id)) ?? [];
@@ -263,7 +315,6 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
     function reset() {
         resetMotion.current = true;
         setFactors({ ...defaults.factors });
-        setProgress(1);
         setPrepared(false);
         setDna(true);
         setTrails(true);
@@ -271,7 +322,7 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
         setStatus("The sample and controls returned to their initial settings.");
     }
     function restore() {
-        publish(newWorld(defaults.seed, defaults.count, factors, progress, defaults.teachingPopulation));
+        publish(newWorld(defaults.seed, defaults.count, factors, 1, defaults.teachingPopulation));
         setPrepared(false);
         setStatus("The sample now uses all current factor settings.");
     }
@@ -312,9 +363,15 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
         if (!held || held.id !== event.pointerId)
             return;
         if (!held.dragged && world.current) {
-            const position = point(event), cell = findCell(world.current, position.x, position.y);
+            const position = point(event), width = event.currentTarget.clientWidth, height = event.currentTarget.clientHeight;
+            const cell = hitTestCell(world.current, position.x * width, position.y * height, width, height, held.type === "touch" ? 11 : 6);
             if (cell)
-                choose(cell.id);
+                choose(cell.id, true);
+            else {
+                setSelectedId(null);
+                setPopupOpen(false);
+                setStatus("No cell is selected.");
+            }
         }
         const remaining = flow.current;
         actions.current.release();
@@ -332,6 +389,10 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
             event.preventDefault();
             nextCell();
         }
+        else if (event.key === "Escape") {
+            event.preventDefault();
+            setPopupOpen(false);
+        }
         else if (event.key === " ") {
             event.preventDefault();
             setPaused(value => !value);
@@ -344,7 +405,7 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
                         return _jsxs("div", { className: "sl-factor", children: [_jsxs("div", { className: "sl-factor-row", children: [_jsx("label", { htmlFor: rangeId, children: shortLabels[id] }), _jsx("input", { id: rangeId, "data-factor": id, type: "range", min: "0", max: "100", step: "1", value: value, "aria-label": shortLabels[id] === factor.title ? factor.title : `${shortLabels[id]}: ${factor.title}`, "aria-valuetext": `${value} of 100, relative illustrative setting`, onChange: event => changeFactor(id, Number(event.target.value) / 100) }), _jsx("output", { htmlFor: rangeId, children: value })] }), _jsxs("details", { className: "sl-factor-help", children: [_jsxs("summary", { children: [_jsxs("span", { children: ["About ", shortLabels[id].toLowerCase()] }), _jsx("svg", { viewBox: "0 0 16 16", "aria-hidden": "true", children: _jsx("path", { d: "m5 6 3 3 3-3" }) })] }), _jsx("p", { children: factor.summary }), _jsx("p", { children: factor.mechanism }), _jsx("p", { className: "sl-evidence", children: factor.evidence }), _jsx("p", { children: factor.limits }), _jsx("p", { className: "sl-help-timescale", children: factor.timescale }), _jsx("ul", { children: factor.sources.map(source => _jsx("li", { children: _jsx("a", { href: source.url, target: "_blank", rel: "noopener noreferrer", children: source.title }) }, source.url)) })] })] }, id);
                     })] }, group.title)) });
     }
-    return _jsxs("div", { ref: root, className: `sperm-lab sl-lab sl-lab-v3 ${className}`.trim(), style: style, children: [_jsxs("div", { className: "sl-intro-line", children: [_jsxs("p", { children: [_jsx("strong", { children: "Change the factors. Watch one sample." }), " Each slider acts independently."] }), _jsx("span", { children: "All 12 settings use relative scales." })] }), _jsxs("div", { className: "sl-workbench", children: [controlColumn("left"), _jsxs("section", { className: "sl-field", "aria-label": "Live sperm sample", children: [_jsxs("div", { className: "sl-sample-bar", children: [_jsxs("div", { children: [_jsx("h2", { children: prepared ? "Prepared defect examples" : defaults.teachingPopulation ? "Illustrative sample" : "Live sample" }), _jsxs("span", { children: [metrics.total, " fictional cells"] })] }), _jsxs("div", { className: "sl-actions", children: [_jsx("button", { type: "button", "aria-pressed": paused, onClick: () => setPaused(value => !value), children: paused ? "Resume" : "Pause" }), _jsx("button", { type: "button", onClick: reset, children: "Reset sample" })] })] }), defaults.teachingPopulation && !prepared && _jsx("p", { className: "sl-teaching-population", children: "The teaching sample includes common defect examples. Counts do not show their frequency in people." }), unavailable && _jsx("p", { role: "status", children: "Canvas is unavailable. The sample counts, cell inspector, and factor explanations remain available." }), _jsx("div", { className: "sl-canvas-wrap", children: _jsx("canvas", { ref: canvas, tabIndex: 0, role: "group", "aria-label": "Interactive sperm sample. Drag to stir. Click a cell to inspect it. Arrow keys create currents. Enter selects the next cell. Space pauses.", "aria-describedby": `${prefix}-help`, onPointerDown: pointerDown, onPointerMove: pointerMove, onPointerUp: pointerUp, onPointerCancel: () => actions.current.release(), onLostPointerCapture: () => { pointer.current = null; }, onKeyDown: keyboard, children: "The sample needs canvas support. Use the cell inspector and model counts for a text alternative." }) }), _jsx("p", { id: `${prefix}-help`, className: "sl-canvas-help", children: "Drag to stir. Click a cell to inspect it. On touch screens, tap a cell or use Create a current." }), _jsxs("div", { className: "sl-sample-tools", children: [_jsx("button", { type: "button", onClick: () => current(.3, .1), disabled: paused, children: "Create a current" }), _jsx("button", { type: "button", onClick: nextCell, children: "Inspect next cell" }), _jsx("button", { type: "button", onClick: prepareExamples, children: "Inspect defect examples" })] }), _jsxs("div", { className: "sl-display", children: [_jsxs("label", { children: [_jsx("input", { type: "checkbox", checked: dna, onChange: event => setDna(event.target.checked) }), "DNA overlay"] }), _jsxs("label", { children: [_jsx("input", { type: "checkbox", checked: trails, onChange: event => setTrails(event.target.checked) }), "Trails"] }), _jsxs("label", { children: [_jsx("input", { type: "checkbox", checked: slowMotion, onChange: event => setSlowMotion(event.target.checked) }), "Slow motion"] })] }), _jsx("p", { className: "sl-overlay-note", children: "Red marks illustrated abnormalities. Disconnected red pieces inside the nucleus show schematic DNA fragmentation. The overlay is not ordinary microscopy." }), _jsxs("div", { className: "sl-development", children: [_jsx("label", { htmlFor: `${prefix}-progress`, children: "Development point" }), _jsx("input", { id: `${prefix}-progress`, type: "range", min: "0", max: "100", value: Math.round(progress * 100), "aria-valuetext": `${Math.round(progress * 100)} of 100, schematic development, not real days`, onChange: event => setProgress(Number(event.target.value) / 100) }), _jsx("output", { htmlFor: `${prefix}-progress`, children: progress === 0 ? "Before" : progress === 1 ? "Later" : "Between" })] }), _jsx("p", { className: "sl-model-note", children: "Sliders prepare an illustrative later cohort. Counts do not predict personal fertility." }), prepared && _jsxs("div", { className: "sl-prepared-note", children: [_jsx("p", { children: "These examples contain head, tail, midpiece, and DNA traits. They do not show the effects of a specific exposure." }), _jsx("button", { type: "button", onClick: restore, children: "Return to current settings" })] })] }), controlColumn("right"), _jsxs("section", { className: "sl-readouts", "aria-labelledby": `${prefix}-counts-title`, children: [_jsx("h2", { id: `${prefix}-counts-title`, children: "In this sample" }), _jsx("dl", { children: [
+    return _jsxs("div", { ref: root, className: `sperm-lab sl-lab sl-lab-v3 ${className}`.trim(), style: style, children: [_jsxs("div", { className: "sl-intro-line", children: [_jsxs("p", { children: [_jsx("strong", { children: "Change the factors. Watch one sample." }), " Each slider acts independently."] }), _jsx("span", { children: "All 12 settings use relative scales." })] }), _jsxs("div", { className: "sl-workbench", children: [controlColumn("left"), _jsxs("section", { className: "sl-field", "aria-label": "Live sperm sample", children: [_jsxs("div", { className: "sl-sample-bar", children: [_jsxs("div", { children: [_jsx("h2", { children: prepared ? "Prepared defect examples" : defaults.teachingPopulation ? "Illustrative sample" : "Live sample" }), _jsxs("span", { children: [metrics.total, " fictional cells"] })] }), _jsxs("div", { className: "sl-actions", children: [_jsx("button", { type: "button", "aria-pressed": paused, onClick: () => setPaused(value => !value), children: paused ? "Resume" : "Pause" }), _jsx("button", { type: "button", onClick: reset, children: "Reset sample" })] })] }), _jsxs("div", { className: "sl-concentration", children: [_jsx("span", { id: `${prefix}-concentration`, children: "Concentration" }), _jsxs("output", { "data-concentration": metrics.total, "aria-labelledby": `${prefix}-concentration`, children: [metrics.total, " cells / model field"] }), _jsx("small", { children: "Synthetic model count. No clinical units." })] }), defaults.teachingPopulation && !prepared && _jsx("p", { className: "sl-teaching-population", children: "The teaching sample includes common defect examples. Counts do not show their frequency in people." }), unavailable && _jsx("p", { role: "status", children: "Canvas is unavailable. The sample counts, cell inspector, and factor explanations remain available." }), _jsxs("div", { className: "sl-canvas-wrap", "data-popup": popupOpen && Boolean(selected), style: { "--sl-popup-min-height": `${popupHeight}px` }, children: [_jsx("canvas", { ref: canvas, tabIndex: 0, role: "group", "aria-label": "Interactive sperm sample. Drag to stir. Click a cell for details. Arrow keys create currents. Enter selects the next cell and opens its details. Escape closes details. Space pauses.", "aria-describedby": `${prefix}-help`, onPointerDown: pointerDown, onPointerMove: pointerMove, onPointerUp: pointerUp, onPointerCancel: () => actions.current.release(), onLostPointerCapture: () => { pointer.current = null; }, onKeyDown: keyboard, children: "The sample needs canvas support. Use the cell inspector and model counts for a text alternative." }), popupOpen && selected && _jsxs(_Fragment, { children: [_jsx("svg", { className: "sl-popup-connector", "aria-hidden": "true", children: _jsx("line", { ref: popupConnector }) }), _jsxs("div", { ref: popup, className: "sl-cell-popup", role: "dialog", "aria-modal": "false", "aria-labelledby": `${prefix}-popup-title`, "data-cell-popup": "true", "data-cell-id": selected.id, children: [_jsxs("header", { children: [_jsxs("h3", { id: `${prefix}-popup-title`, children: ["Cell ", selected.id + 1] }), _jsx("button", { ref: popupClose, className: "sl-popup-close", type: "button", "aria-label": "Close cell details", onClick: () => { setPopupOpen(false); canvas.current?.focus({ preventScroll: true }); }, children: _jsx("svg", { viewBox: "0 0 20 20", "aria-hidden": "true", children: _jsx("path", { d: "m5 5 10 10M15 5 5 15" }) }) })] }), _jsx(CellPopupDetails, { cell: selected, dna: dna }), _jsx("button", { className: "sl-popup-anatomy", type: "button", onClick: () => { setPopupOpen(false); requestAnimationFrame(() => inspector.current?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })); }, children: "Full anatomy" })] })] })] }), _jsx("p", { id: `${prefix}-help`, className: "sl-canvas-help", children: "Drag to stir. Click a cell to inspect it. On touch screens, tap a cell or use Create a current." }), _jsxs("div", { className: "sl-sample-tools", children: [_jsx("button", { type: "button", onClick: () => current(.3, .1), disabled: paused, children: "Create a current" }), _jsx("button", { type: "button", onClick: () => nextCell(), children: "Inspect next cell" }), _jsx("button", { type: "button", onClick: prepareExamples, children: "Inspect defect examples" })] }), _jsxs("div", { className: "sl-display", children: [_jsxs("label", { children: [_jsx("input", { type: "checkbox", checked: dna, onChange: event => setDna(event.target.checked) }), "DNA overlay"] }), _jsxs("label", { children: [_jsx("input", { type: "checkbox", checked: trails, onChange: event => setTrails(event.target.checked) }), "Trails"] }), _jsxs("label", { children: [_jsx("input", { type: "checkbox", checked: slowMotion, onChange: event => setSlowMotion(event.target.checked) }), "Slow motion"] })] }), _jsx("p", { className: "sl-overlay-note", children: "Red marks illustrated abnormalities. Disconnected red pieces inside the nucleus show schematic DNA fragmentation. The overlay is not ordinary microscopy." }), _jsx("p", { className: "sl-model-note", children: "Sliders prepare an illustrative later cohort. Counts do not predict personal fertility." }), prepared && _jsxs("div", { className: "sl-prepared-note", children: [_jsx("p", { children: "These examples contain head, tail, midpiece, and DNA traits. They do not show the effects of a specific exposure." }), _jsx("button", { type: "button", onClick: restore, children: "Return to current settings" })] })] }), controlColumn("right"), _jsxs("section", { className: "sl-readouts", "aria-labelledby": `${prefix}-counts-title`, children: [_jsx("h2", { id: `${prefix}-counts-title`, children: "In this sample" }), _jsx("dl", { children: [
                                     ["Cells", metrics.total], ["Active motion", metrics.motile], ["Forward", metrics.progressive], ["Slow", metrics.slow],
                                     ["Nonprogressive", metrics.nonprogressive], ["Still", metrics.immotile], ["Alive", metrics.alive],
                                 ].map(([label, value]) => _jsxs("div", { children: [_jsx("dt", { children: label }), _jsx("dd", { children: value })] }, label)) })] }), _jsxs("section", { className: "sl-catalog", "aria-labelledby": `${prefix}-catalog-title`, children: [_jsxs("header", { children: [_jsx("h2", { id: `${prefix}-catalog-title`, children: "Common examples" }), _jsx("p", { children: "These curated examples explain separate traits. Their frequency is not clinical prevalence. Select an example to inspect its cell." })] }), _jsx("div", { className: "sl-defect-catalog", children: DEFECT_CATALOG.map(defect => {
@@ -355,6 +416,24 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
 }
 function movementLabel(cell) {
     return !cell.alive || cell.speed === 0 ? "Still" : !cell.progressive ? "Nonprogressive movement" : isSlow(cell) ? "Slow forward movement" : "Forward movement";
+}
+function CellPopupDetails({ cell, dna }) {
+    const traits = getCellDefects(cell)
+        .filter(trait => dna || trait.id !== "dna-fragmentation")
+        .map(trait => ({ id: String(trait.id), title: trait.title, description: trait.description }));
+    if (cell.headShape === "irregular" || (cell.headDefect && cell.headCount === 1 && cell.headShape === "typical")) {
+        traits.push({ id: "irregular-head", title: "Irregular head", description: "The modeled head outline differs from a typical oval." });
+    }
+    if (cell.tailShape === "irregular" || (cell.tailDefect && cell.tailCount === 1 && cell.tailShape === "typical")) {
+        traits.push({ id: "irregular-tail", title: "Irregular tail", description: "The modeled tail has an irregular bend." });
+    }
+    if (!cell.alive)
+        traits.push({ id: "nonviable", title: "Nonviable", description: "This cell is not alive in the model. Vitality differs from movement." });
+    const head = cell.headCount > 1 ? `${cell.headCount} heads` : cell.headShape === "typical" ? "One typical head" : `${cell.headShape} head`;
+    const tail = cell.tailCount === 0 ? "Absent" : cell.tailCount > 1 ? `${cell.tailCount} tails` : cell.tailShape === "typical" ? "One typical tail" : `${cell.tailShape} tail`;
+    const midpiece = `${cell.midpieceShape === "typical" ? "Typical outline" : `${cell.midpieceShape} outline`}${cell.midpieceDamage ? ", modeled injury" : ", no modeled injury"}`;
+    return _jsxs("div", { className: "sl-popup-details", children: [_jsxs("dl", { children: [_jsxs("div", { children: [_jsx("dt", { children: "Movement" }), _jsx("dd", { children: movementLabel(cell) })] }), _jsxs("div", { children: [_jsx("dt", { children: "Vitality" }), _jsx("dd", { children: cell.alive ? "Alive" : "Nonviable" })] }), _jsxs("div", { children: [_jsx("dt", { children: "Head" }), _jsx("dd", { children: head })] }), _jsxs("div", { children: [_jsx("dt", { children: "Tail" }), _jsx("dd", { children: tail })] }), _jsxs("div", { children: [_jsx("dt", { children: "Midpiece" }), _jsx("dd", { children: midpiece })] }), _jsxs("div", { children: [_jsx("dt", { children: "DNA" }), _jsx("dd", { children: dna ? cell.dnaDamage ? `${cell.dnaFragmentation} illustrated fragments` : "No modeled fragmentation" : "Hidden. DNA overlay is off." })] }), _jsxs("div", { children: [_jsx("dt", { children: "Relative speed" }), _jsxs("dd", { children: [cell.alive ? Math.round(cell.speed / .07 * 100) : 0, "/100"] })] })] }), traits.length ? _jsx("ul", { className: "sl-popup-traits", children: traits.map(trait => _jsxs("li", { children: [_jsx("strong", { children: trait.title }), _jsx("span", { children: trait.description })] }, trait.id)) })
+                : _jsx("p", { className: "sl-popup-healthy", children: dna ? "No modeled defects." : "No other modeled defects. DNA is hidden." })] });
 }
 function traitLabels(cell) {
     const labels = [cell.alive ? "Alive in the model" : "Nonviable in the model"];

@@ -2,10 +2,10 @@
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import {
-  FACTORS, ANATOMY_SOURCES, DEFECT_CATALOG, cellMatchesDefect, getDefectCounts, createSimulation, createDefectSimulation, stepSimulation, getMetrics, findCell, isSlow,
+  FACTORS, ANATOMY_SOURCES, DEFECT_CATALOG, cellMatchesDefect, getDefectCounts, getCellDefects, createSimulation, createDefectSimulation, stepSimulation, getMetrics, isSlow,
   type FactorId, type Simulation, type SpermCell,
 } from "../core/index.js";
-import { paintSimulation, type SpermPalette } from "./renderer.js";
+import { paintSimulation, hitTestCell, getCellAnchor, type SpermPalette } from "./renderer.js";
 
 type Metrics = ReturnType<typeof getMetrics>;
 type Factors = Partial<Record<FactorId, number>>;
@@ -47,12 +47,13 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
   const [defaults] = useState(() => ({ seed: finite(seed, 42, 0, 0xffffffff), count: Math.round(finite(count, 48, teachingPopulation ? 18 : 8, 120)), factors: resolveFactors(initialFactors, initialFactor), teachingPopulation }));
   const prefix = useId();
   const [factors, setFactors] = useState<Factors>(defaults.factors);
-  const [progress, setProgress] = useState(1);
   const [paused, setPaused] = useState(false);
   const [slowMotion, setSlowMotion] = useState(false);
   const [trails, setTrails] = useState(true);
   const [dna, setDna] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupHeight, setPopupHeight] = useState(0);
   const [prepared, setPrepared] = useState(false);
   const [status, setStatus] = useState("");
   const [unavailable, setUnavailable] = useState(false);
@@ -63,9 +64,12 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
   const root = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const inspector = useRef<HTMLElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  const popupClose = useRef<HTMLButtonElement>(null);
+  const popupConnector = useRef<SVGLineElement>(null);
   const callback = useRef(onMetrics); callback.current = onMetrics;
-  const settings = useRef({ paused, slowMotion, trails, dna, selectedId });
-  settings.current = { paused, slowMotion, trails, dna, selectedId };
+  const settings = useRef({ paused, slowMotion, trails, dna, selectedId, popupOpen });
+  settings.current = { paused, slowMotion, trails, dna, selectedId, popupOpen };
   const actions = useRef({ invalidate: () => {}, release: () => {} });
   const flow = useRef<{ x: number; y: number; dx: number; dy: number; strength: number } | undefined>(undefined);
   const pointer = useRef<{ id: number; x: number; y: number; startX: number; startY: number; dragged: boolean; type: string } | null>(null);
@@ -88,14 +92,14 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
     const counts = getMetrics(next);
     setMetrics(counts); callback.current?.(counts);
     setDefectCounts(getDefectCounts(next));
-    if (!preserveMotion || !next.cells.some(cell => cell.id === selectedId)) setSelectedId(null);
+    if (!preserveMotion || !next.cells.some(cell => cell.id === selectedId)) { setSelectedId(null); setPopupOpen(false); }
     actions.current.release(); actions.current.invalidate();
   }
   useEffect(() => {
-    publish(newWorld(defaults.seed, defaults.count, factors, progress, defaults.teachingPopulation), !resetMotion.current);
+    publish(newWorld(defaults.seed, defaults.count, factors, 1, defaults.teachingPopulation), !resetMotion.current);
     resetMotion.current = false;
     setPrepared(false);
-  }, [defaults, factors, progress]);
+  }, [defaults, factors]);
 
   useEffect(() => {
     const surface = canvas.current!, context = surface.getContext("2d");
@@ -117,6 +121,31 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
         context!.beginPath(); context!.arc(x, y, 8 + (1 - Math.min(1, current.strength)) * 20, 0, Math.PI * 2);
         context!.moveTo(x, y); context!.lineTo(x + current.dx * 90, y + current.dy * 90);
         context!.stroke(); context!.restore();
+      }
+      const panel = popup.current;
+      const selectedCell = world.current.cells.find(cell => cell.id === settings.current.selectedId);
+      if (settings.current.popupOpen && panel && selectedCell && width && height) {
+        const anchor = getCellAnchor(selectedCell, width, height);
+        const panelWidth = panel.offsetWidth, panelHeight = panel.offsetHeight, gap = 18, edge = 8;
+        const placeLeft = anchor.x + gap + panelWidth > width - edge;
+        let left = Math.max(edge, Math.min(width - panelWidth - edge, placeLeft ? anchor.x - gap - panelWidth : anchor.x + gap));
+        let top = Math.max(edge, Math.min(height - panelHeight - edge, anchor.y - Math.min(panelHeight * .35, 90)));
+        let placement = placeLeft ? "left" : "right";
+        if (width < 440) {
+          const below = anchor.y + gap + panelHeight <= height - edge;
+          left = Math.max(edge, Math.min(width - panelWidth - edge, anchor.x - panelWidth / 2));
+          top = Math.max(edge, Math.min(height - panelHeight - edge, below ? anchor.y + gap : anchor.y - gap - panelHeight));
+          placement = below ? "below" : "above";
+        }
+        panel.style.transform = `translate(${left.toFixed(1)}px, ${top.toFixed(1)}px)`;
+        panel.style.visibility = "visible";
+        panel.dataset.placement = placement;
+        const line = popupConnector.current;
+        if (line) {
+          line.setAttribute("x1", String(anchor.x)); line.setAttribute("y1", String(anchor.y));
+          line.setAttribute("x2", String(Math.max(left, Math.min(left + panelWidth, anchor.x))));
+          line.setAttribute("y2", String(Math.max(top + 8, Math.min(top + panelHeight - 8, anchor.y))));
+        }
       }
     }
     function stop() { cancelAnimationFrame(frame); cancelAnimationFrame(idleFrame); frame = idleFrame = last = 0; surface.dataset.running = "false"; }
@@ -178,14 +207,30 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
       media.removeEventListener("change", motionChange); actions.current = { invalidate: () => {}, release: () => {} };
     };
   }, []);
-  useEffect(() => { if (paused) actions.current.release(); actions.current.invalidate(); }, [paused, slowMotion, trails, dna, selectedId, prepared]);
+  useEffect(() => { if (paused) actions.current.release(); actions.current.invalidate(); }, [paused, slowMotion, trails, dna, selectedId, prepared, popupOpen, popupHeight]);
+
+  useEffect(() => {
+    if (!popupOpen || !popup.current) return;
+    const measure = () => setPopupHeight(Math.ceil(popup.current?.offsetHeight ?? 0) + ((canvas.current?.clientWidth ?? 600) < 440 ? 160 : 24));
+    const observer = new ResizeObserver(measure); observer.observe(popup.current); measure();
+    function escape(event: globalThis.KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      const restoreFocus = popup.current?.contains(document.activeElement);
+      setPopupOpen(false);
+      if (restoreFocus) canvas.current?.focus({ preventScroll: true });
+    }
+    window.addEventListener("keydown", escape);
+    return () => { observer.disconnect(); window.removeEventListener("keydown", escape); };
+  }, [popupOpen]);
 
   function changeFactor(id: FactorId, value: number) {
     setFactors(previous => ({ ...previous, [id]: value }));
     setStatus("The combined settings prepare a new illustrated cohort.");
   }
-  function choose(id: number) {
+  function choose(id: number, openPopup = false) {
     setSelectedId(id);
+    setPopupOpen(openPopup);
     const cell = world.current?.cells.find(item => item.id === id);
     if (cell) setStatus(`Cell ${id + 1}. ${movementLabel(cell)}. ${traitLabels(cell).join(". ")}.`);
   }
@@ -193,7 +238,7 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
     const cells = world.current?.cells;
     if (!cells?.length) return;
     const index = cells.findIndex(cell => cell.id === selectedId);
-    choose(cells[(index + 1) % cells.length].id);
+    choose(cells[(index + 1) % cells.length].id, true);
   }
   function inspectDefect(id: Defect) {
     const cells = world.current?.cells.filter(cell => cellMatchesDefect(cell, id)) ?? [];
@@ -210,11 +255,11 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
   }
   function reset() {
     resetMotion.current = true;
-    setFactors({ ...defaults.factors }); setProgress(1); setPrepared(false); setDna(true); setTrails(true); setSlowMotion(false);
+    setFactors({ ...defaults.factors }); setPrepared(false); setDna(true); setTrails(true); setSlowMotion(false);
     setStatus("The sample and controls returned to their initial settings.");
   }
   function restore() {
-    publish(newWorld(defaults.seed, defaults.count, factors, progress, defaults.teachingPopulation)); setPrepared(false);
+    publish(newWorld(defaults.seed, defaults.count, factors, 1, defaults.teachingPopulation)); setPrepared(false);
     setStatus("The sample now uses all current factor settings.");
   }
   function current(dx: number, dy: number) {
@@ -241,7 +286,12 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
   }
   function pointerUp(event: PointerEvent<HTMLCanvasElement>) {
     const held = pointer.current; if (!held || held.id !== event.pointerId) return;
-    if (!held.dragged && world.current) { const position = point(event), cell = findCell(world.current, position.x, position.y); if (cell) choose(cell.id); }
+    if (!held.dragged && world.current) {
+      const position = point(event), width = event.currentTarget.clientWidth, height = event.currentTarget.clientHeight;
+      const cell = hitTestCell(world.current, position.x * width, position.y * height, width, height, held.type === "touch" ? 11 : 6);
+      if (cell) choose(cell.id, true);
+      else { setSelectedId(null); setPopupOpen(false); setStatus("No cell is selected."); }
+    }
     const remaining = flow.current; actions.current.release(); flow.current = remaining;
   }
   function keyboard(event: KeyboardEvent<HTMLCanvasElement>) {
@@ -249,6 +299,7 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
     const directions: Record<string, [number, number]> = { ArrowLeft: [-.3, 0], ArrowRight: [.3, 0], ArrowUp: [0, -.3], ArrowDown: [0, .3] };
     if (directions[event.key]) { event.preventDefault(); current(...directions[event.key]); }
     else if (event.key === "Enter") { event.preventDefault(); nextCell(); }
+    else if (event.key === "Escape") { event.preventDefault(); setPopupOpen(false); }
     else if (event.key === " ") { event.preventDefault(); setPaused(value => !value); }
   }
 
@@ -282,15 +333,24 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
       {controlColumn("left")}
       <section className="sl-field" aria-label="Live sperm sample">
         <div className="sl-sample-bar"><div><h2>{prepared ? "Prepared defect examples" : defaults.teachingPopulation ? "Illustrative sample" : "Live sample"}</h2><span>{metrics.total} fictional cells</span></div><div className="sl-actions"><button type="button" aria-pressed={paused} onClick={() => setPaused(value => !value)}>{paused ? "Resume" : "Pause"}</button><button type="button" onClick={reset}>Reset sample</button></div></div>
+        <div className="sl-concentration"><span id={`${prefix}-concentration`}>Concentration</span><output data-concentration={metrics.total} aria-labelledby={`${prefix}-concentration`}>{metrics.total} cells / model field</output><small>Synthetic model count. No clinical units.</small></div>
         {defaults.teachingPopulation && !prepared && <p className="sl-teaching-population">The teaching sample includes common defect examples. Counts do not show their frequency in people.</p>}
         {unavailable && <p role="status">Canvas is unavailable. The sample counts, cell inspector, and factor explanations remain available.</p>}
-        <div className="sl-canvas-wrap"><canvas ref={canvas} tabIndex={0} role="group" aria-label="Interactive sperm sample. Drag to stir. Click a cell to inspect it. Arrow keys create currents. Enter selects the next cell. Space pauses." aria-describedby={`${prefix}-help`}
-          onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={() => actions.current.release()} onLostPointerCapture={() => { pointer.current = null; }} onKeyDown={keyboard}>The sample needs canvas support. Use the cell inspector and model counts for a text alternative.</canvas></div>
+        <div className="sl-canvas-wrap" data-popup={popupOpen && Boolean(selected)} style={{ "--sl-popup-min-height": `${popupHeight}px` } as CSSProperties}><canvas ref={canvas} tabIndex={0} role="group" aria-label="Interactive sperm sample. Drag to stir. Click a cell for details. Arrow keys create currents. Enter selects the next cell and opens its details. Escape closes details. Space pauses." aria-describedby={`${prefix}-help`}
+          onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={() => actions.current.release()} onLostPointerCapture={() => { pointer.current = null; }} onKeyDown={keyboard}>The sample needs canvas support. Use the cell inspector and model counts for a text alternative.</canvas>
+          {popupOpen && selected && <>
+            <svg className="sl-popup-connector" aria-hidden="true"><line ref={popupConnector} /></svg>
+            <div ref={popup} className="sl-cell-popup" role="dialog" aria-modal="false" aria-labelledby={`${prefix}-popup-title`} data-cell-popup="true" data-cell-id={selected.id}>
+              <header><h3 id={`${prefix}-popup-title`}>Cell {selected.id + 1}</h3><button ref={popupClose} className="sl-popup-close" type="button" aria-label="Close cell details" onClick={() => { setPopupOpen(false); canvas.current?.focus({ preventScroll: true }); }}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg></button></header>
+              <CellPopupDetails cell={selected} dna={dna} />
+              <button className="sl-popup-anatomy" type="button" onClick={() => { setPopupOpen(false); requestAnimationFrame(() => inspector.current?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })); }}>Full anatomy</button>
+            </div>
+          </>}
+        </div>
         <p id={`${prefix}-help`} className="sl-canvas-help">Drag to stir. Click a cell to inspect it. On touch screens, tap a cell or use Create a current.</p>
-        <div className="sl-sample-tools"><button type="button" onClick={() => current(.3, .1)} disabled={paused}>Create a current</button><button type="button" onClick={nextCell}>Inspect next cell</button><button type="button" onClick={prepareExamples}>Inspect defect examples</button></div>
+        <div className="sl-sample-tools"><button type="button" onClick={() => current(.3, .1)} disabled={paused}>Create a current</button><button type="button" onClick={() => nextCell()}>Inspect next cell</button><button type="button" onClick={prepareExamples}>Inspect defect examples</button></div>
         <div className="sl-display"><label><input type="checkbox" checked={dna} onChange={event => setDna(event.target.checked)} />DNA overlay</label><label><input type="checkbox" checked={trails} onChange={event => setTrails(event.target.checked)} />Trails</label><label><input type="checkbox" checked={slowMotion} onChange={event => setSlowMotion(event.target.checked)} />Slow motion</label></div>
         <p className="sl-overlay-note">Red marks illustrated abnormalities. Disconnected red pieces inside the nucleus show schematic DNA fragmentation. The overlay is not ordinary microscopy.</p>
-        <div className="sl-development"><label htmlFor={`${prefix}-progress`}>Development point</label><input id={`${prefix}-progress`} type="range" min="0" max="100" value={Math.round(progress * 100)} aria-valuetext={`${Math.round(progress * 100)} of 100, schematic development, not real days`} onChange={event => setProgress(Number(event.target.value) / 100)} /><output htmlFor={`${prefix}-progress`}>{progress === 0 ? "Before" : progress === 1 ? "Later" : "Between"}</output></div>
         <p className="sl-model-note">Sliders prepare an illustrative later cohort. Counts do not predict personal fertility.</p>
         {prepared && <div className="sl-prepared-note"><p>These examples contain head, tail, midpiece, and DNA traits. They do not show the effects of a specific exposure.</p><button type="button" onClick={restore}>Return to current settings</button></div>}
       </section>
@@ -334,6 +394,34 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
 
 function movementLabel(cell: SpermCell) {
   return !cell.alive || cell.speed === 0 ? "Still" : !cell.progressive ? "Nonprogressive movement" : isSlow(cell) ? "Slow forward movement" : "Forward movement";
+}
+function CellPopupDetails({ cell, dna }: { cell: SpermCell; dna: boolean }) {
+  const traits = getCellDefects(cell)
+    .filter(trait => dna || trait.id !== "dna-fragmentation")
+    .map(trait => ({ id: String(trait.id), title: trait.title, description: trait.description }));
+  if (cell.headShape === "irregular" || (cell.headDefect && cell.headCount === 1 && cell.headShape === "typical")) {
+    traits.push({ id: "irregular-head", title: "Irregular head", description: "The modeled head outline differs from a typical oval." });
+  }
+  if (cell.tailShape === "irregular" || (cell.tailDefect && cell.tailCount === 1 && cell.tailShape === "typical")) {
+    traits.push({ id: "irregular-tail", title: "Irregular tail", description: "The modeled tail has an irregular bend." });
+  }
+  if (!cell.alive) traits.push({ id: "nonviable", title: "Nonviable", description: "This cell is not alive in the model. Vitality differs from movement." });
+  const head = cell.headCount > 1 ? `${cell.headCount} heads` : cell.headShape === "typical" ? "One typical head" : `${cell.headShape} head`;
+  const tail = cell.tailCount === 0 ? "Absent" : cell.tailCount > 1 ? `${cell.tailCount} tails` : cell.tailShape === "typical" ? "One typical tail" : `${cell.tailShape} tail`;
+  const midpiece = `${cell.midpieceShape === "typical" ? "Typical outline" : `${cell.midpieceShape} outline`}${cell.midpieceDamage ? ", modeled injury" : ", no modeled injury"}`;
+  return <div className="sl-popup-details">
+    <dl>
+      <div><dt>Movement</dt><dd>{movementLabel(cell)}</dd></div>
+      <div><dt>Vitality</dt><dd>{cell.alive ? "Alive" : "Nonviable"}</dd></div>
+      <div><dt>Head</dt><dd>{head}</dd></div>
+      <div><dt>Tail</dt><dd>{tail}</dd></div>
+      <div><dt>Midpiece</dt><dd>{midpiece}</dd></div>
+      <div><dt>DNA</dt><dd>{dna ? cell.dnaDamage ? `${cell.dnaFragmentation} illustrated fragments` : "No modeled fragmentation" : "Hidden. DNA overlay is off."}</dd></div>
+      <div><dt>Relative speed</dt><dd>{cell.alive ? Math.round(cell.speed / .07 * 100) : 0}/100</dd></div>
+    </dl>
+    {traits.length ? <ul className="sl-popup-traits">{traits.map(trait => <li key={trait.id}><strong>{trait.title}</strong><span>{trait.description}</span></li>)}</ul>
+      : <p className="sl-popup-healthy">{dna ? "No modeled defects." : "No other modeled defects. DNA is hidden."}</p>}
+  </div>;
 }
 function traitLabels(cell: SpermCell) {
   const labels = [cell.alive ? "Alive in the model" : "Nonviable in the model"];

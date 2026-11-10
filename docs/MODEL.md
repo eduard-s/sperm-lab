@@ -50,7 +50,8 @@ The lab identifies uncertain scenarios as possible-pathway examples.
 Every numerical parameter in a scenario is an authored teaching value.
 The parameters do not fit clinical data.
 Factor strength does not represent drinks, cigarettes, kilometers, degrees, or chemical concentration.
-The Development point slider does not represent a clinical recovery period.
+The core progress option does not represent a clinical recovery period.
+The React component applies the current factor settings at progress 1.
 
 The combined sample uses authored rules for shared development and damage pathways.
 It does not estimate the independent risk of each factor or their combined clinical effect.
@@ -116,9 +117,10 @@ WHO guidance includes environmental chemicals in the assessment of male infertil
 A human sperm study reports typical head lengths of 4–6 µm, midpiece lengths of 5–7 µm, and tail lengths of 50–60 µm.
 [Read the study of human sperm proportions and longitudinal rolling](https://pmc.ncbi.nlm.nih.gov/articles/PMC9790903/).
 
-Those dimensions guide the original cell outlines.
-The display does not use a calibrated microscope scale.
-Typical heads remain compact ovals, with a short, thin midpiece and a much longer tail.
+Those dimensions guide the anatomical arrangement.
+The renderer enlarges heads and injury marks to make live traits visible.
+The display does not use a calibrated microscope scale or fixed anatomical pixel ratios.
+Typical heads remain compact ovals, with a short, thin midpiece and a longer tail.
 The catalog changes the outlines only for the selected structural examples.
 The anatomy inspector enlarges parts for explanation.
 
@@ -129,6 +131,17 @@ Their piece count does not measure molecular breaks or laboratory assay results.
 They do not show molecular detail or resolved DNA breaks in ordinary microscopy.
 The overlay does not replace a laboratory assay for DNA damage.
 
+## Concentration in the model
+
+Concentration means the current cell count in one model field.
+The readout uses `Metrics.total` and displays `cells / model field`.
+Factor changes can change that count when they prepare a new population.
+The teaching mode keeps at least 18 cells for catalog coverage.
+
+The field has no calibrated fluid volume.
+The readout does not use cells per milliliter or clinical reference thresholds.
+It does not measure semen concentration or predict fertility.
+
 ## Motion and inspection
 
 Each cell has a position, direction, beat phase, and short movement trail.
@@ -136,10 +149,16 @@ A bounded motion rule produces forward travel, circling, weak movement, or immob
 A sinusoidal tail drawing makes the beat visible.
 The mouse adds a local current.
 The current moves cells without changing their biological properties.
+A current can move an immotile cell without active propulsion.
 
 The model omits fluid interactions, three-dimensional motion, capacitation, chemotaxis, fertilization, and interactions with reproductive tissues.
 The DNA view is an educational overlay.
 It is not a microscopy technique or a diagnostic assay.
+
+The live field shows head, tail, midpiece, and DNA traits directly.
+Pointer selection uses the rendered cell geometry, including tails and midpieces.
+A nonmodal detail popup tracks the selected cell during motion.
+Its enlarged anatomy remains a schematic teaching view.
 
 Discovery challenges use prepared samples with known targets.
 Those samples teach a distinction and do not represent population frequencies.

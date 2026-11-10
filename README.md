@@ -47,19 +47,37 @@ export default function Lab() {
 1. Adjust a factor slider.
 2. Combine more factors in the same sample.
 3. Drag across the sample to make a current.
-4. Select a cell to examine its anatomy.
+4. Select a cell to open its detail popup.
 5. Use the DNA view to reveal hidden damage.
 6. Use the prepared morphology sample to find different cell forms.
 
 All 12 factor sliders remain visible.
 Each slider has its own value and explanation.
-The Development point slider changes an illustrative stage, without real days.
 The sample can show forward movement, slow movement, circles, and immobility.
 Cell traits include head shapes, multiple tails, midpiece differences, and red DNA fragmentation marks.
 
 The lab separates movement, vitality, shape, and DNA damage.
 An immotile sperm can be alive.
 Typical shape and forward movement do not prove that DNA is intact.
+
+## Live cell inspection
+
+Defects appear in the live sample as cells move.
+Select a visible head, midpiece, or tail to inspect its cell.
+The detail popup tracks the selected cell.
+It shows movement, vitality, head shape, tail shape, midpiece traits, and DNA integrity.
+The popup keeps the sample interactive.
+
+Press Escape to dismiss the popup.
+Click empty sample space to clear the selection.
+Select Full anatomy for the enlarged diagram.
+Use Inspect next cell for keyboard inspection.
+The focused canvas also accepts Enter to select the next cell.
+
+The Concentration readout shows the current count as cells per model field.
+Factor changes update the count when they prepare a new population.
+This is synthetic density without clinical units or thresholds.
+It does not represent a semen measurement.
 
 ## The 12 factors
 
@@ -104,7 +122,7 @@ Use `teachingPopulation={false}` for a synthetic population without guaranteed c
 
 ## Model limits
 
-All cells, counts, factor strengths, and development stages are fictional teaching examples.
+All cells, counts, and factor strengths are fictional teaching examples.
 The model does not calculate personal fertility, clinical doses, or treatment outcomes.
 Its movement model does not solve fluid dynamics.
 

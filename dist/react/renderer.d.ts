@@ -1,4 +1,5 @@
-import { type Simulation } from "../core/index.js";
+import type { Simulation } from "../core/index.js";
+export { getCellAnchor, getCellGeometry, hitTestCell } from "./geometry.js";
 export type SpermPalette = {
     ink: string;
     sage: string;

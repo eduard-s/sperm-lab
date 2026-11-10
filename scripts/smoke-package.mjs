@@ -79,10 +79,15 @@ try {
       for (const factor of FACTORS) assert(html.includes('data-factor="' + factor.id + '"'), factor.id);
       assert.equal((html.match(/<canvas\\b/g) ?? []).length, 1);
       assert(!html.includes('<select'));
+      assert(html.includes('data-concentration="24"'));
+      assert(html.replaceAll('<!-- -->', '').includes('24 cells / model field'));
+      assert(!html.includes('Development point'));
       const catalog = Object.fromEntries([...html.matchAll(/data-defect="([^"]+)" data-count="(\\d+)"/g)].map(match => [match[1], Number(match[2])]));
       for (const defect of DEFECT_CATALOG) assert(catalog[defect.id] > 0, defect.id);
       const configured = renderToString(React.createElement(SpermLab, { initialFactors: { smoking: .5, heat: .3 } }));
       assert(!configured.includes('All factors start at zero.'));
+      const suppressed = renderToString(React.createElement(SpermLab, { count: 24, initialFactors: { androgens: 1 } }));
+      assert(suppressed.includes('data-concentration="18"'));
       process.stdout.write(html);
     `);
     assert(markup.length > 1000);

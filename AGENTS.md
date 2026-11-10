@@ -34,6 +34,17 @@ Keep the raw core opt-in through `teachingPopulation`.
 Keep a matching example for every catalog category.
 Preserve the required catalog trait while other traits respond to the factors.
 
+Show defects directly in the live sample.
+Use shared renderer geometry to select visible heads, midpieces, and tails.
+Open a nonmodal detail popup for the selected cell.
+Keep that popup near the cell during motion.
+Show all cell traits and keep full anatomy optional.
+Preserve keyboard inspection and popup dismissal.
+
+Show Concentration as `Metrics.total` with the unit `cells / model field`.
+Update the count when the synthetic population changes.
+Use no clinical concentration units or reference thresholds.
+
 Never change existing cell heads or DNA during a motion step.
 Factor changes prepare a new synthetic population.
 

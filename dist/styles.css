@@ -51,6 +51,10 @@
 .sl-sample-bar > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
 .sl-sample-bar h2 { margin: 0; font-size: 14px; line-height: 1.5; font-weight: 600; }
 .sl-sample-bar span { font-size: 10px; opacity: .75; }
+.sl-concentration { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 9px; margin-top: 10px; }
+.sl-concentration > span { font-size: 11px; }
+.sl-concentration output { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sl-concentration small { flex-basis: 100%; font-size: 10px; line-height: 1.5; opacity: .75; }
 .sl-teaching-population { margin: 7px 0 0; font-size: 10px; line-height: 1.6; opacity: .8; }
 .sl-actions { display: flex; gap: 4px; }
 .sl-actions button { border: 0; padding-inline: 8px; }
@@ -58,6 +62,23 @@
 .sl-canvas-wrap canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: pan-y pinch-zoom; }
 .sl-canvas-wrap canvas:active { cursor: grabbing; }
 .sl-canvas-wrap canvas:focus-visible { outline-offset: -4px; }
+.sl-canvas-wrap[data-popup="true"] { min-height: max(300px, var(--sl-popup-min-height, 0px)); max-height: none; }
+.sl-popup-connector { position: absolute; inset: 0; z-index: 2; display: block; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
+.sl-popup-connector line { stroke: var(--sl-accent); stroke-width: 1; stroke-dasharray: 3 3; opacity: .65; }
+.sl-cell-popup { position: absolute; top: 0; left: 0; z-index: 3; width: 260px; max-width: calc(100% - 16px); padding: 0 12px 8px; border: 1px solid var(--sl-rule); border-radius: 4px; background: var(--sl-paper); color: var(--sl-ink); visibility: hidden; }
+.sl-cell-popup > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.sl-cell-popup h3 { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.4; }
+.sl-cell-popup .sl-popup-close { display: grid; place-items: center; min-width: 44px; min-height: 44px; margin-right: -8px; padding: 8px; border: 0; }
+.sl-popup-close svg { display: block; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.sl-popup-details dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin: 0; }
+.sl-popup-details dt { font-size: 9px; line-height: 1.4; opacity: .75; }
+.sl-popup-details dd { margin: 2px 0 0; font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
+.sl-popup-traits { display: grid; gap: 8px; padding: 10px 0 0; margin: 10px 0 0; border-top: 1px solid var(--sl-rule); list-style: none; }
+.sl-popup-traits strong, .sl-popup-traits span { display: block; }
+.sl-popup-traits strong { font-size: 10px; font-weight: 600; line-height: 1.4; }
+.sl-popup-traits span { margin-top: 2px; font-size: 10px; line-height: 1.5; }
+.sl-popup-healthy { margin: 12px 0 0; font-size: 11px; line-height: 1.5; }
+.sl-cell-popup .sl-popup-anatomy { min-height: 44px; margin-top: 7px; padding: 7px 0; border: 0; color: var(--sl-accent); font-size: 11px; text-decoration: underline; text-underline-offset: 3px; }
 .sl-canvas-help { margin: 6px 0 0; font-size: 11px; line-height: 1.6; }
 .sl-sample-tools { display: flex; flex-wrap: wrap; gap: 5px 7px; margin-top: 10px; }
 .sl-sample-tools button { flex: 1 1 auto; padding-inline: 8px; font-size: 11px; }
@@ -65,10 +86,6 @@
 .sl-display label { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; font-size: 11px; cursor: pointer; }
 .sl-display input { width: 15px; height: 15px; margin: 0; accent-color: var(--sl-accent); }
 .sl-overlay-note, .sl-model-note { margin: 2px 0 0; font-size: 10px; line-height: 1.6; opacity: .8; }
-.sl-development { display: grid; grid-template-columns: 112px minmax(0, 1fr) 48px; align-items: center; gap: 8px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--sl-rule); }
-.sl-development label { font-size: 11px; }
-.sl-development input { width: 100%; min-width: 0; min-height: 32px; margin: 0; padding: 0; accent-color: var(--sl-accent); }
-.sl-development output { font-size: 10px; text-align: right; }
 .sl-readouts { grid-area: readouts; min-width: 0; padding-top: 16px; border-top: 1px solid var(--sl-rule); }
 .sl-readouts h2, .sl-inspector h2, .sl-mechanisms h2 { margin: 0; font-size: 14px; line-height: 1.5; font-weight: 600; }
 .sl-readouts dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 10px 0 0; }
@@ -174,8 +191,6 @@
   .sl-factor-help a { min-height: 44px; }
   .sl-display { gap: 4px 14px; }
   .sl-display label { min-height: 44px; }
-  .sl-development { grid-template-columns: 104px minmax(0, 1fr) 44px; }
-  .sl-development input { min-height: 44px; }
   .sl-defect-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sl-inspector-content { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .sl-cell-facts dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -185,7 +200,6 @@
   .sl-factor-row { grid-template-columns: 104px minmax(50px, 1fr) 26px; gap: 6px; }
   .sl-readouts dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .sl-sample-tools button { font-size: 10px; }
-  .sl-development { grid-template-columns: 92px minmax(0, 1fr) 40px; gap: 5px; }
 }
 @media (pointer: coarse) { .sl-factor-row input[type="range"], .sl-factor-help summary { min-height: 44px; } }
 @media (forced-colors: active) {
