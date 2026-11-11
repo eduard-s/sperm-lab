@@ -55,6 +55,7 @@ All factor strengths default to zero.
 The older `initialFactor` option starts that factor at a strength of 0.65.
 All 12 native factor sliders remain visible.
 Each slider changes its own value in the combined sample.
+The sliders show example quantities or scenario levels. The component converts slider changes to strengths from 0 to 1.
 
 `onMetrics` receives one `Metrics` object after the initial mount and population changes.
 It does not run for every animation frame.

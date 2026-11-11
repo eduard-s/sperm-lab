@@ -49,7 +49,8 @@ The lab identifies uncertain scenarios as possible-pathway examples.
 
 Every numerical parameter in a scenario is an authored teaching value.
 The parameters do not fit clinical data.
-Factor strength does not represent drinks, cigarettes, kilometers, degrees, or chemical concentration.
+The React controls use example quantities such as cigarettes per day and nights of disrupted sleep per week.
+These quantities select relative strengths in the core. The model does not estimate a clinical response to an exposure.
 The core progress option does not represent a clinical recovery period.
 The React component applies the current factor settings at progress 1.
 

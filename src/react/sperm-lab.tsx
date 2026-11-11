@@ -29,10 +29,52 @@ const groups: { title: string; ids: FactorId[]; side: "left" | "right" }[] = [
   { title: "Chemicals", ids: ["androgens", "pesticides"], side: "right" },
 ];
 const shortLabels: Record<FactorId, string> = {
-  exercise: "Regular exercise", endurance: "Heavy running", cycling: "Long cycling", smoking: "Smoking", alcohol: "Heavy alcohol",
+  exercise: "Regular exercise", endurance: "Heavy running", cycling: "Long cycling", smoking: "Smoking", alcohol: "Alcohol use",
   stress: "Chronic stress", sleep: "Poor sleep", heat: "Prolonged heat", fever: "Fever", metabolic: "Metabolic stress",
   androgens: "External androgens", pesticides: "Certain pesticides",
 };
+
+type Quantity = {
+  max: number;
+  step: number;
+  unit: [singular: string, plural: string];
+};
+type FactorControl = Quantity | readonly string[];
+
+const scenarioLevels = ["Off", "Low", "Moderate", "High"] as const;
+const factorControls: Record<FactorId, FactorControl> = {
+  exercise: { max: 300, step: 15, unit: ["min/week", "min/week"] },
+  endurance: { max: 15, step: 1, unit: ["hour/week", "hours/week"] },
+  cycling: { max: 20, step: 1, unit: ["hour/week", "hours/week"] },
+  smoking: { max: 40, step: 1, unit: ["cigarette/day", "cigarettes/day"] },
+  alcohol: { max: 35, step: 1, unit: ["drink/week", "drinks/week"] },
+  stress: { max: 7, step: 1, unit: ["day/week", "days/week"] },
+  sleep: { max: 7, step: 1, unit: ["night/week", "nights/week"] },
+  heat: { max: 14, step: 1, unit: ["hour/week", "hours/week"] },
+  fever: { max: 7, step: 1, unit: ["day", "days"] },
+  metabolic: scenarioLevels,
+  androgens: scenarioLevels,
+  pesticides: scenarioLevels,
+};
+
+function factorSlider(id: FactorId, strength: number) {
+  const control = factorControls[id];
+  if ("max" in control) {
+    const { max, step, unit } = control;
+    const value = Math.round(strength * max / step) * step;
+    if (strength > 0 && value === 0) {
+      const firstStep = `${step} ${unit[step === 1 ? 0 : 1]}`;
+      return { max, step, value, text: `<${firstStep}`, spokenText: `Less than ${firstStep}` };
+    }
+    const text = `${value} ${unit[value === 1 ? 0 : 1]}`;
+    return { max, step, value, text, spokenText: text };
+  }
+  const max = control.length - 1;
+  const value = strength > 0 ? Math.max(1, Math.round(strength * max)) : 0;
+  const text = control[value];
+  return { max, step: 1, value, text, spokenText: `${text} (illustrative scenario)` };
+}
+
 function finite(value: number | undefined, fallback: number, min: number, max: number) {
   return Number.isFinite(value) ? Math.min(max, Math.max(min, value!)) : fallback;
 }
@@ -316,13 +358,17 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
       {groups.filter(group => group.side === side).map(group => <fieldset className="sl-factor-group" key={group.title}>
         <legend>{group.title}</legend>
         {group.ids.map(id => {
-          const factor = FACTORS.find(item => item.id === id)!, value = Math.round((factors[id] ?? 0) * 100);
+          const factor = FACTORS.find(item => item.id === id)!;
+          const { max, step, value, text, spokenText } = factorSlider(id, factors[id] ?? 0);
           const rangeId = `${prefix}-${id}`;
           return <div className="sl-factor" key={id}>
             <div className="sl-factor-row">
               <label htmlFor={rangeId}>{shortLabels[id]}</label>
-              <input id={rangeId} data-factor={id} type="range" min="0" max="100" step="1" value={value} aria-label={shortLabels[id] === factor.title ? factor.title : `${shortLabels[id]}: ${factor.title}`} aria-valuetext={`${value} of 100, relative illustrative setting`} style={{ "--sl-progress": `${value}%` } as CSSProperties} onChange={event => changeFactor(id, Number(event.target.value) / 100)} />
-              <output htmlFor={rangeId}>{value}</output>
+              <input id={rangeId} data-factor={id} type="range" min={0} max={max} step={step} value={value}
+                aria-label={shortLabels[id] === factor.title ? factor.title : `${shortLabels[id]}: ${factor.title}`}
+                aria-valuetext={spokenText} style={{ "--sl-progress": `${value / max * 100}%` } as CSSProperties}
+                onChange={event => changeFactor(id, Number(event.target.value) / max)} />
+              <output htmlFor={rangeId}>{text}</output>
             </div>
             <details className="sl-factor-help"><summary><span>About {shortLabels[id].toLowerCase()}</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5 6 3 3 3-3" /></svg></summary>
               <p>{factor.summary}</p><p>{factor.mechanism}</p><p className="sl-evidence">{factor.evidence}</p><p>{factor.limits}</p>
@@ -336,7 +382,7 @@ export function SpermLab({ seed = 42, count = 48, initialFactors, initialFactor,
   }
 
   return <div ref={root} className={`sperm-lab sl-lab sl-lab-v3 ${className}`.trim()} style={style}>
-    <div className="sl-intro-line"><p><strong>Change the factors. Watch one sample.</strong> Each slider acts independently.</p><span>All 12 settings use relative scales.</span></div>
+    <div className="sl-intro-line"><p><strong>Change the factors. Watch one sample.</strong> Each slider acts independently.</p><span>The settings describe example habits and exposures. The sample shows illustrative responses.</span></div>
     <div className="sl-workbench">
       <section className="sl-field" aria-label="Live sperm sample">
         <div className="sl-sample-bar"><div><h2>{prepared ? "Prepared defect examples" : defaults.teachingPopulation ? "Illustrative sample" : "Live sample"}</h2><span>{metrics.total} fictional cells</span></div><div className="sl-actions"><button className="sl-explore" type="button" aria-pressed={popupOpen} aria-controls={`${prefix}-sample`} onClick={explore}>Explore</button><button type="button" aria-pressed={paused} onClick={() => setPaused(value => !value)}>{paused ? "Resume" : "Pause"}</button><button type="button" onClick={reset}>Reset sample</button></div></div>

@@ -32,15 +32,15 @@
 .sl-factor-group + .sl-factor-group { padding-top: 16px; border-top: 1px solid var(--sl-rule); }
 .sl-factor-group legend { width: 100%; padding: 0; margin-bottom: 8px; font-size: 13px; line-height: 1.5; font-weight: 600; }
 .sl-factor + .sl-factor { margin-top: 12px; }
-.sl-factor-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 8px; }
-.sl-factor-row label { grid-column: 1; grid-row: 1; font-size: 13px; line-height: 18px; overflow-wrap: normal; }
+.sl-factor-row { display: grid; grid-template-columns: minmax(0, 1fr) fit-content(55%); align-items: center; column-gap: 8px; }
+.sl-factor-row label { grid-column: 1; grid-row: 1; font-size: 13px; line-height: 18px; }
 .sl-factor-row input[type="range"] { grid-column: 1 / -1; grid-row: 2; appearance: none; -webkit-appearance: none; display: block; width: 100%; min-width: 0; height: 44px; padding: 0; margin: 0; border: 0; background: transparent; accent-color: var(--sl-accent); cursor: pointer; }
 .sl-factor-row input[type="range"]::-webkit-slider-runnable-track { height: 8px; border-radius: 999px; background: linear-gradient(to right, var(--sl-accent) 0 var(--sl-progress), var(--sl-track) var(--sl-progress) 100%); }
 .sl-factor-row input[type="range"]::-moz-range-track { height: 8px; border-radius: 999px; background: var(--sl-track); }
 .sl-factor-row input[type="range"]::-moz-range-progress { height: 8px; border-radius: 999px; background: var(--sl-accent); }
 .sl-factor-row input[type="range"]::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin-top: -6px; border: 0; border-radius: 50%; background: var(--sl-accent); }
 .sl-factor-row input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: var(--sl-accent); }
-.sl-factor-row output { grid-column: 2; grid-row: 1; font-size: 12px; line-height: 18px; font-variant-numeric: tabular-nums; text-align: right; opacity: .8; }
+.sl-factor-row output { grid-column: 2; grid-row: 1; font-size: 12px; line-height: 18px; font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere; opacity: .8; }
 .sl-factor-help { min-width: 0; }
 .sl-factor-help summary { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 26px; width: 100%; cursor: pointer; font-size: 10px; color: var(--sl-accent); list-style: none; }
 .sl-factor-help summary::-webkit-details-marker { display: none; }
